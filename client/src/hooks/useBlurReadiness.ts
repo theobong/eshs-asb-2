@@ -24,7 +24,7 @@ export const useBlurReadiness = (initialDelay: number = 200) => {
         z-index: -1;
       `;
       document.body.appendChild(testElement);
-      
+
       // Use requestAnimationFrame to wait for compositor
       const checkBlurReady = () => {
         requestAnimationFrame(() => {
@@ -39,7 +39,7 @@ export const useBlurReadiness = (initialDelay: number = 200) => {
           });
         });
       };
-      
+
       checkBlurReady();
     }, initialDelay);
 

@@ -18,6 +18,10 @@ import CheckoutSuccessPage from "@/pages/shop/checkout/success";
 import CheckoutCancelPage from "@/pages/shop/checkout/cancel";
 import CheckoutFailurePage from "@/pages/shop/checkout/failure";
 
+// Ticket checkout pages
+import TicketCheckoutPage from "@/pages/checkout/ticket";
+import TicketCheckoutSuccessPage from "@/pages/checkout/success";
+
 
 // Information related pages
 import Information from "@/pages/information/index";
@@ -82,6 +86,10 @@ function Router() {
         <Route path="/shop/product/:id" component={() => <PageWrapper><ProductPage /></PageWrapper>} />
         <Route path="/shop/cart" component={() => <PageWrapper><CartPage /></PageWrapper>} />
         <Route path="/shop" component={() => <PageWrapper><Shop /></PageWrapper>} />
+        
+        {/* Ticket checkout pages for approved activity tickets */}
+        <Route path="/checkout/success" component={() => <PageWrapper><TicketCheckoutSuccessPage /></PageWrapper>} />
+        <Route path="/checkout/:submissionId" component={() => <PageWrapper><TicketCheckoutPage /></PageWrapper>} />
         
         {/* Information pages */}
         <Route path="/information" component={() => <PageWrapper><Information /></PageWrapper>} />

@@ -50,11 +50,16 @@ declare module 'express-session' {
   }
 }
 
-// Hash the admin password on startup
+// Hash the admin passwords on startup
 const ADMIN_PASSWORD_HASH = bcrypt.hashSync(
   process.env.ADMIN_PASSWORD || 'admin',
   10
 );
+
+// Second admin password (optional)
+const ADMIN_PASSWORD_2_HASH = process.env.ADMIN_PASSWORD_2
+  ? bcrypt.hashSync(process.env.ADMIN_PASSWORD_2, 10)
+  : null;
 
 // Authentication middleware
 export const requireAdminAuth = (req: Request, res: Response, next: NextFunction) => {
@@ -72,7 +77,12 @@ export const handleAdminLogin = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Password is required' });
   }
 
-  const isValid = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+  // Check against both admin passwords
+  const isValidPassword1 = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+  const isValidPassword2 = ADMIN_PASSWORD_2_HASH
+    ? await bcrypt.compare(password, ADMIN_PASSWORD_2_HASH)
+    : false;
+  const isValid = isValidPassword1 || isValidPassword2;
 
   if (isValid) {
     // Regenerate session ID for security

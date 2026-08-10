@@ -71,12 +71,20 @@ interface PurchaseConfirmationData {
 class EmailService {
   private fromEmail: string;
   private adminEmail: string;
+  private formNotificationEmails: string[];
   private transporter: nodemailer.Transporter;
 
   constructor() {
     // Get email addresses from environment variables or use defaults
     this.fromEmail = process.env.FROM_EMAIL || 'noreply@eshsasb.org';
     this.adminEmail = process.env.ADMIN_EMAIL || 'theo@bongbong.com';
+
+    // Parse comma-separated list of form notification emails
+    const notificationEmailsStr = process.env.FORM_NOTIFICATION_EMAILS || '';
+    this.formNotificationEmails = notificationEmailsStr
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email.length > 0);
 
     // Configure transporter for local Postfix only
     this.transporter = nodemailer.createTransport({
@@ -109,7 +117,7 @@ class EmailService {
 
   private async sendEmail(options: EmailOptions): Promise<void> {
     const { to, subject, html, attachments = [] } = options;
-    
+
     try {
       const mailOptions = {
         from: `El Segundo High ASB <${this.fromEmail}>`,
@@ -137,82 +145,55 @@ class EmailService {
 <html>
 <head>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { background: #f8f9fa; padding: 30px; margin-top: 0; border-radius: 0 0 8px 8px; }
-    .info-box { background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
-    .info-row { margin: 10px 0; }
-    .label { font-weight: bold; color: #003366; }
-    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; }
-    .attachments { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #b3d9ff; }
-    .status-badge { display: inline-block; padding: 5px 10px; background: #ffd700; color: #333; border-radius: 15px; font-weight: bold; font-size: 12px; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    h2 { color: #003366; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+    .info-section { margin: 20px 0; }
+    .info-row { margin: 8px 0; }
+    .label { font-weight: bold; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ccc; font-size: 12px; color: #666; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h2>📧 Submission Receipt</h2>
-      <p style="margin: 0; font-size: 14px;">Your form submission has been received</p>
-    </div>
-    <div class="content">
-      <p>Dear ${data.studentName},</p>
-      
-      <p>Thank you for submitting your forms for <strong>${data.eventName}</strong>. This email serves as your receipt and confirmation that we have received your submission.</p>
-      
-      <div class="info-box">
-        <h3 style="margin-top: 0; color: #667eea;">📋 Submission Details</h3>
-        <div class="info-row">
-          <span class="label">Event:</span> ${data.eventName}
-        </div>
-        <div class="info-row">
-          <span class="label">Submission Date:</span> ${new Date(data.submissionDate).toLocaleString()}
-        </div>
-        <div class="info-row">
-          <span class="label">Ticket Type:</span> ${data.ticketType?.name || 'Not specified'}
-        </div>
-        <div class="info-row">
-          <span class="label">Quantity:</span> ${data.quantity}
-        </div>
-        <div class="info-row">
-          <span class="label">Total Amount:</span> $${data.totalAmount.toFixed(2)}
-        </div>
-        ${data.notes ? `
-        <div class="info-row">
-          <span class="label">Your Notes:</span> ${data.notes}
-        </div>
-        ` : ''}
-        <div class="info-row">
-          <span class="label">Status:</span> <span class="status-badge">⏳ PENDING REVIEW</span>
-        </div>
-      </div>
-      
-      <div class="attachments">
-        <p><strong>📎 Submitted Forms:</strong></p>
-        <p style="font-size: 14px; color: #666;">The following forms have been submitted and are attached to this email for your records:</p>
-        <ul>
-          ${data.forms?.map(form => `<li>${form.fileName}</li>`).join('') || '<li>No forms attached</li>'}
-        </ul>
-      </div>
-      
-      <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-top: 20px;">
-        <h4 style="margin-top: 0; color: #2e7d32;">📬 What happens next?</h4>
-        <ol style="margin: 10px 0; padding-left: 20px;">
-          <li>Your submission will be reviewed by an administrator</li>
-          <li>You will receive an email notification once your request is approved or if additional information is needed</li>
-          <li>If approved, you'll receive instructions for completing your purchase</li>
-        </ol>
-        <p style="margin-bottom: 0; font-size: 14px;"><strong>Expected review time:</strong> Within 1-2 business days</p>
-      </div>
-      
-      <p style="margin-top: 20px; font-size: 14px; color: #666;">
-        <strong>Important:</strong> Please keep this email for your records. The attached forms are the same documents you submitted. If you have any questions about your submission, please contact the ASB office.
-      </p>
-    </div>
-    <div class="footer">
-      <p><strong>El Segundo High School ASB Team</strong></p>
-      <p style="font-size: 12px;">This is an automated receipt. Please do not reply to this email.</p>
-    </div>
+  <h2>Submission Receipt</h2>
+
+  <p>Dear ${data.studentName},</p>
+
+  <p>Thank you for submitting your forms for <strong>${data.eventName}</strong>. This email confirms that we have received your submission.</p>
+
+  <div class="info-section">
+    <h3>Submission Details</h3>
+    <div class="info-row"><span class="label">Event:</span> ${data.eventName}</div>
+    <div class="info-row"><span class="label">Submission Date:</span> ${new Date(data.submissionDate).toLocaleString()}</div>
+    <div class="info-row"><span class="label">Ticket Type:</span> ${data.ticketType?.name || 'Not specified'}</div>
+    <div class="info-row"><span class="label">Quantity:</span> ${data.quantity}</div>
+    <div class="info-row"><span class="label">Total Amount:</span> $${data.totalAmount.toFixed(2)}</div>
+    ${data.notes ? `<div class="info-row"><span class="label">Your Notes:</span> ${data.notes}</div>` : ''}
+    <div class="info-row"><span class="label">Status:</span> Pending Review</div>
+  </div>
+
+  <div class="info-section">
+    <h3>Submitted Forms</h3>
+    <p>The following forms have been submitted and are attached to this email:</p>
+    <ul>
+      ${data.forms?.map(form => `<li>${form.fileName}</li>`).join('') || '<li>No forms attached</li>'}
+    </ul>
+  </div>
+
+  <div class="info-section">
+    <h3>What happens next?</h3>
+    <ol>
+      <li>Your submission will be reviewed by an administrator</li>
+      <li>You will receive an email notification once your request is approved or if additional information is needed</li>
+      <li>If approved, you'll receive instructions for completing your purchase</li>
+    </ol>
+    <p>Expected review time: Within 1-2 business days</p>
+  </div>
+
+  <p>Please keep this email for your records. If you have any questions, please contact the ASB office.</p>
+
+  <div class="footer">
+    <p>El Segundo High School ASB</p>
+    <p>This is an automated receipt. Please do not reply to this email.</p>
   </div>
 </body>
 </html>
@@ -242,65 +223,36 @@ class EmailService {
 <html>
 <head>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #003366; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { background: #f9f9f9; padding: 20px; margin-top: 20px; border-radius: 0 0 8px 8px; }
-    .info-row { margin: 10px 0; }
-    .label { font-weight: bold; color: #003366; }
-    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; }
-    .attachments { background: #fff; padding: 15px; border-radius: 5px; margin: 15px 0; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    h2 { color: #003366; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+    .info-row { margin: 8px 0; }
+    .label { font-weight: bold; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ccc; font-size: 12px; color: #666; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h2>📝 New Activity Form Submission</h2>
-    </div>
-    <div class="content">
-      <p>A new form submission has been received for review:</p>
-      
-      <div class="info-row">
-        <span class="label">Event:</span> ${data.eventName}
-      </div>
-      <div class="info-row">
-        <span class="label">Student Name:</span> ${data.studentName}
-      </div>
-      <div class="info-row">
-        <span class="label">Email:</span> ${data.email}
-      </div>
-      <div class="info-row">
-        <span class="label">Submission Date:</span> ${new Date(data.submissionDate).toLocaleString()}
-      </div>
-      <div class="info-row">
-        <span class="label">Ticket Type:</span> ${data.ticketType?.name || 'Not specified'}
-      </div>
-      <div class="info-row">
-        <span class="label">Quantity:</span> ${data.quantity}
-      </div>
-      <div class="info-row">
-        <span class="label">Total Amount:</span> $${data.totalAmount.toFixed(2)}
-      </div>
-      ${data.notes ? `
-      <div class="info-row">
-        <span class="label">Notes:</span> ${data.notes}
-      </div>
-      ` : ''}
-      
-      <div class="attachments">
-        <p><strong>📎 Attached Forms:</strong></p>
-        <ul>
-          ${data.forms?.map(form => `<li>${form.fileName} (${form.fileType})</li>`).join('') || '<li>No forms attached</li>'}
-        </ul>
-      </div>
-      
-      <p style="margin-top: 20px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
-        <strong>Action Required:</strong> Please review this submission in the admin panel and approve or reject it.
-      </p>
-    </div>
-    <div class="footer">
-      <p>This is an automated message from the ESHS ASB System</p>
-    </div>
+  <h2>New Activity Form Submission</h2>
+
+  <p>A new form submission has been received for review:</p>
+
+  <div class="info-row"><span class="label">Event:</span> ${data.eventName}</div>
+  <div class="info-row"><span class="label">Student Name:</span> ${data.studentName}</div>
+  <div class="info-row"><span class="label">Email:</span> ${data.email}</div>
+  <div class="info-row"><span class="label">Submission Date:</span> ${new Date(data.submissionDate).toLocaleString()}</div>
+  <div class="info-row"><span class="label">Ticket Type:</span> ${data.ticketType?.name || 'Not specified'}</div>
+  <div class="info-row"><span class="label">Quantity:</span> ${data.quantity}</div>
+  <div class="info-row"><span class="label">Total Amount:</span> $${data.totalAmount.toFixed(2)}</div>
+  ${data.notes ? `<div class="info-row"><span class="label">Notes:</span> ${data.notes}</div>` : ''}
+
+  <h3>Attached Forms</h3>
+  <ul>
+    ${data.forms?.map(form => `<li>${form.fileName} (${form.fileType})</li>`).join('') || '<li>No forms attached</li>'}
+  </ul>
+
+  <p><strong>Action Required:</strong> Please review this submission in the admin panel and approve or reject it.</p>
+
+  <div class="footer">
+    <p>This is an automated message from the ESHS ASB System</p>
   </div>
 </body>
 </html>
@@ -312,12 +264,22 @@ class EmailService {
       contentType: att.contentType
     })) || [];
 
-    await this.sendEmail({
-      to: this.adminEmail,
-      subject: `📝 New Activity Form Submission - ${data.eventName} - ${data.studentName}`,
-      html,
-      attachments: emailAttachments
-    });
+    // Send to all form notification emails
+    const recipients = this.formNotificationEmails.length > 0
+      ? this.formNotificationEmails
+      : [this.adminEmail]; // Fallback to admin email if no notification emails configured
+
+    console.log(`EmailService: Sending form notification to ${recipients.length} recipients: ${recipients.join(', ')}`);
+
+    // Send email to each recipient
+    for (const recipient of recipients) {
+      await this.sendEmail({
+        to: recipient,
+        subject: `New Activity Form Submission - ${data.eventName} - ${data.studentName}`,
+        html,
+        attachments: emailAttachments
+      });
+    }
   }
 
   async sendApprovalNotification(to: string, data: ApprovalEmailData): Promise<void> {
@@ -327,68 +289,36 @@ class EmailService {
 <html>
 <head>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { background: #f8f9fa; padding: 30px; margin-top: 0; border-radius: 0 0 8px 8px; }
-    .button { 
-      display: inline-block; 
-      padding: 15px 30px; 
-      background: linear-gradient(135deg, #28a745, #20c997); 
-      color: white; 
-      text-decoration: none; 
-      border-radius: 8px; 
-      margin-top: 20px; 
-      font-weight: bold;
-      box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
-      transition: transform 0.2s;
-    }
-    .button:hover { transform: translateY(-2px); }
-    .info-box { background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745; }
-    .info-row { margin: 10px 0; }
-    .label { font-weight: bold; color: #003366; }
-    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    h2 { color: #003366; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+    .info-row { margin: 8px 0; }
+    .label { font-weight: bold; }
+    .button { display: inline-block; padding: 12px 24px; background: #003366; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ccc; font-size: 12px; color: #666; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h2>🎉 Your Activity Request Has Been Approved!</h2>
-    </div>
-    <div class="content">
-      <p>Dear ${data.studentName},</p>
-      
-      <p>Your request for <strong>${data.eventName}</strong> has been approved by the ASB team.</p>
-      
-      <div class="info-box">
-        <div class="info-row">
-          <span class="label">Event:</span> ${data.eventName}
-        </div>
-        <div class="info-row">
-          <span class="label">Ticket Type:</span> ${data.ticketType?.name || 'Not specified'}
-        </div>
-        <div class="info-row">
-          <span class="label">Quantity:</span> ${data.quantity}
-        </div>
-        <div class="info-row">
-          <span class="label">Total Amount:</span> $${data.totalAmount.toFixed(2)}
-        </div>
-      </div>
-      
-      <p>You can now proceed to complete your payment using the secure link below:</p>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${data.ticketPurchaseUrl}" class="button">💳 Complete Payment</a>
-      </div>
-      
-      <p style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3;">
-        <strong>Important:</strong> Please complete your payment within 48 hours to secure your spot. Your payment will be processed securely through Clover. If you have any questions, contact the ASB office.
-      </p>
-    </div>
-    <div class="footer">
-      <p>Thank you for participating in school activities!</p>
-      <p><strong>El Segundo High School ASB Team</strong></p>
-    </div>
+  <h2>Your Activity Request Has Been Approved</h2>
+
+  <p>Dear ${data.studentName},</p>
+
+  <p>Your request for <strong>${data.eventName}</strong> has been approved by the ASB team.</p>
+
+  <h3>Details</h3>
+  <div class="info-row"><span class="label">Event:</span> ${data.eventName}</div>
+  <div class="info-row"><span class="label">Ticket Type:</span> ${data.ticketType?.name || 'Not specified'}</div>
+  <div class="info-row"><span class="label">Quantity:</span> ${data.quantity}</div>
+  <div class="info-row"><span class="label">Total Amount:</span> $${data.totalAmount.toFixed(2)}</div>
+
+  <p>You can now proceed to complete your payment using the link below:</p>
+
+  <p><a href="${data.ticketPurchaseUrl}" class="button" style="color: white !important;">Complete Payment</a></p>
+
+  <p><strong>Important:</strong> Please complete your payment within 48 hours to secure your spot. If you have any questions, contact the ASB office.</p>
+
+  <div class="footer">
+    <p>Thank you for participating in school activities!</p>
+    <p>El Segundo High School ASB</p>
   </div>
 </body>
 </html>
@@ -409,63 +339,33 @@ class EmailService {
 <html>
 <head>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #dc3545, #e74c3c); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { background: #f8f9fa; padding: 30px; margin-top: 0; border-radius: 0 0 8px 8px; }
-    .button { 
-      display: inline-block; 
-      padding: 15px 30px; 
-      background: linear-gradient(135deg, #007bff, #0056b3); 
-      color: white; 
-      text-decoration: none; 
-      border-radius: 8px; 
-      margin-top: 20px; 
-      font-weight: bold;
-      box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
-      transition: transform 0.2s;
-    }
-    .button:hover { transform: translateY(-2px); }
-    .reason-box { 
-      background: #fff; 
-      border-left: 4px solid #dc3545; 
-      padding: 20px; 
-      margin: 20px 0; 
-      border-radius: 0 8px 8px 0;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    h2 { color: #003366; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+    .reason-box { background: #f5f5f5; border-left: 3px solid #999; padding: 15px; margin: 20px 0; }
+    .button { display: inline-block; padding: 12px 24px; background: #003366; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ccc; font-size: 12px; color: #666; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h2>📋 Form Submission Rejected</h2>
-    </div>
-    <div class="content">
-      <p>Dear ${data.studentName},</p>
-      
-      <p>We were unable to verify the completeness and validity of the forms/identification you submitted.</p>
-      
-      <div class="reason-box">
-        <strong>Note:</strong><br>
-        ${data.reason}
-      </div>
-      
-      <p>Please resubmit the forms by clicking the button below with the necessary adjustments.</p>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${data.retryUrl}" class="button">📝 Submit New Request</a>
-      </div>
-      
-      <p style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
-        <strong>Need Help?</strong> If you would like more information about this decision or guidance on requirements, please contact the ASB office during school hours.
-      </p>
-    </div>
-    <div class="footer">
-      <p><strong>El Segundo High School ASB Team</strong></p>
-      <p>We appreciate your interest in school activities!</p>
-    </div>
+  <h2>Form Submission Update</h2>
+
+  <p>Dear ${data.studentName},</p>
+
+  <p>We were unable to approve your submission for <strong>${data.eventName}</strong>.</p>
+
+  <div class="reason-box">
+    <strong>Reason:</strong><br>
+    ${data.reason}
+  </div>
+
+  <p>You may resubmit your forms with the necessary corrections using the link below:</p>
+
+  <p><a href="${data.retryUrl}" class="button" style="color: white !important;">Submit New Request</a></p>
+
+  <p>If you have questions about this decision or need guidance, please contact the ASB office during school hours.</p>
+
+  <div class="footer">
+    <p>El Segundo High School ASB</p>
   </div>
 </body>
 </html>
@@ -473,7 +373,7 @@ class EmailService {
 
     await this.sendEmail({
       to,
-      subject: `Form Submission Rejected - ${data.eventName}`,
+      subject: `Form Submission Update - ${data.eventName}`,
       html
     });
     console.log(`EmailService: Rejection email sent successfully to ${to}`);
@@ -486,85 +386,58 @@ class EmailService {
 <html>
 <head>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { background: #f8f9fa; padding: 30px; margin-top: 0; border-radius: 0 0 8px 8px; }
-    .info-box { background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745; }
-    .info-row { margin: 10px 0; display: flex; justify-content: space-between; }
-    .label { font-weight: bold; color: #003366; }
-    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; }
-    .item-list { background: #fff; padding: 15px; border-radius: 5px; margin: 15px 0; }
-    .item { display: flex; justify-content: space-between; margin: 8px 0; padding: 8px 0; border-bottom: 1px solid #eee; }
-    .payment-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 15px 0; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    h2 { color: #003366; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+    .info-row { margin: 8px 0; }
+    .label { font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #f5f5f5; }
+    .total-row { font-weight: bold; border-top: 2px solid #333; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ccc; font-size: 12px; color: #666; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h2>✅ Payment Successful!</h2>
-      <p style="margin: 0; font-size: 14px;">Thank you for your purchase</p>
-    </div>
-    <div class="content">
-      <p>Your payment has been successfully processed!</p>
-      
-      <div class="info-box">
-        <h3 style="margin-top: 0; color: #28a745;">📋 Order Details</h3>
-        <div class="info-row">
-          <span class="label">Order Number:</span>
-          <span>#${data.orderNumber}</span>
-        </div>
-        <div class="info-row">
-          <span class="label">Order Date:</span>
-          <span>${new Date().toLocaleDateString()}</span>
-        </div>
-      </div>
+  <h2>Payment Confirmation</h2>
 
-      <div class="item-list">
-        <h3 style="margin-top: 0; color: #003366;">🛍️ Items Ordered</h3>
-        ${data.items.map(item => `
-          <div class="item">
-            <div>
-              <strong>${item.name}</strong>
-              ${item.size ? `<br><small>Size: ${item.size}</small>` : ''}
-              ${item.color ? `<br><small>Color: ${item.color}</small>` : ''}
-              <br><small>Qty: ${item.quantity}</small>
-            </div>
-            <div>$${(item.price * item.quantity).toFixed(2)}</div>
-          </div>
-        `).join('')}
-        
-        <div class="item" style="border-top: 2px solid #28a745; font-weight: bold; font-size: 1.1em;">
-          <div>Total</div>
-          <div>$${data.total.toFixed(2)}</div>
-        </div>
-      </div>
+  <p>Your payment has been successfully processed.</p>
 
-      <div class="payment-info">
-        <h3 style="margin-top: 0; color: #003366;">💳 Payment Information</h3>
-        <div class="info-row">
-          <span class="label">Payment Method:</span>
-          <span>${data.paymentMethod.toUpperCase()}${data.last4 ? ` ending in ${data.last4}` : ''}</span>
-        </div>
-        <div class="info-row">
-          <span class="label">Transaction Status:</span>
-          <span style="color: #28a745; font-weight: bold;">✅ COMPLETED</span>
-        </div>
-      </div>
-      
-      <p style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3;">
-        <strong>Next Steps:</strong> Your order will be processed and you will be contacted when it's ready for pickup or delivery according to the method you selected during checkout.
-      </p>
-      
-      <p style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
-        <strong>Questions?</strong> If you have any questions about your order, please contact the ASB office during school hours or reply to this email.
-      </p>
-    </div>
-    <div class="footer">
-      <p>Thank you for supporting ESHS activities!</p>
-      <p><strong>El Segundo High School ASB Team</strong></p>
-      <p style="font-size: 12px;">This is an automated confirmation. Please keep this email for your records.</p>
-    </div>
+  <h3>Order Details</h3>
+  <div class="info-row"><span class="label">Order Number:</span> #${data.orderNumber}</div>
+  <div class="info-row"><span class="label">Order Date:</span> ${new Date().toLocaleDateString()}</div>
+
+  <h3>Items Ordered</h3>
+  <table>
+    <tr>
+      <th>Item</th>
+      <th>Qty</th>
+      <th>Price</th>
+    </tr>
+    ${data.items.map(item => `
+      <tr>
+        <td>${item.name}${item.size ? ` (Size: ${item.size})` : ''}${item.color ? ` (Color: ${item.color})` : ''}</td>
+        <td>${item.quantity}</td>
+        <td>$${(item.price * item.quantity).toFixed(2)}</td>
+      </tr>
+    `).join('')}
+    <tr class="total-row">
+      <td colspan="2">Total</td>
+      <td>$${data.total.toFixed(2)}</td>
+    </tr>
+  </table>
+
+  <h3>Payment Information</h3>
+  <div class="info-row"><span class="label">Payment Method:</span> ${data.paymentMethod.toUpperCase()}${data.last4 ? ` ending in ${data.last4}` : ''}</div>
+  <div class="info-row"><span class="label">Status:</span> Completed</div>
+
+  <p>Your order will be processed and you will be contacted when it's ready for pickup.</p>
+
+  <p>If you have any questions about your order, please contact the ASB office.</p>
+
+  <div class="footer">
+    <p>Thank you for supporting ESHS activities!</p>
+    <p>El Segundo High School ASB</p>
+    <p>Please keep this email for your records.</p>
   </div>
 </body>
 </html>
@@ -585,30 +458,22 @@ class EmailService {
 <html>
 <head>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #007bff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    h2 { color: #003366; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h2>🧪 Test Email</h2>
-    </div>
-    <div class="content">
-      <p>This is a test email from the ESHS ASB System.</p>
-      <p>If you received this email, the email service is working correctly!</p>
-      <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-    </div>
-  </div>
+  <h2>Test Email</h2>
+  <p>This is a test email from the ESHS ASB System.</p>
+  <p>If you received this email, the email service is working correctly.</p>
+  <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
 </body>
 </html>
     `;
 
     await this.sendEmail({
       to,
-      subject: '🧪 Test Email from ESHS ASB System',
+      subject: 'Test Email from ESHS ASB System',
       html
     });
   }

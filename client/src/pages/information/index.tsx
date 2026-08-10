@@ -114,7 +114,6 @@ export default function Information() {
 				<>
 					{/* Important Announcements */}
 					<div>
-						<h2 className="text-2xl font-bold text-white mb-6">Recent Announcements</h2>
 						<BlurContainer contentVisible={contentVisible} delay="200ms" className="p-6">
 							{loading ? (
 								<div className="text-center py-8 text-gray-400">

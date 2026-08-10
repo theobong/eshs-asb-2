@@ -247,6 +247,7 @@ export async function createPaymentIntent(data: {
   items: any[];
   customerEmail: string;
   customerName: string;
+  submissionId?: string; // For ticket purchases
 }) {
   return fetchAPI<any>('/payment/create-intent', {
     method: 'POST',

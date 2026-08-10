@@ -202,17 +202,17 @@ export default function Home() {
 
       {/* Main content container */}
       <div className="min-h-screen w-screen relative flex items-center justify-center overflow-hidden">
-        {/* Interactive elements layout */}
-        <div className="absolute bottom-0 w-full h-4/5 flex items-end justify-center pb-2 sm:pb-4 md:pb-6 lg:pb-8 z-30">
-          <div className="relative w-full max-w-[100rem] flex flex-row justify-between px-2 sm:px-4 md:px-8 lg:px-0">
-            
+        {/* Interactive elements layout - Desktop */}
+        <div className="hidden md:flex absolute bottom-0 w-full h-4/5 items-end justify-center pb-6 lg:pb-8 z-30">
+          <div className="relative w-full max-w-[100rem] flex flex-row justify-between px-8 lg:px-0">
+
             {/* LEFT SIDE ELEMENTS */}
             <div className="relative h-full w-1/2">
               {/* Shop Element */}
-              <div 
+              <div
                 className="shop-overlay animate-float cursor-pointer transition-all duration-300 ease-out
                            hover:transform hover:-translate-y-3 hover:scale-105 hover:drop-shadow-2xl group"
-                style={{ 
+                style={{
                   filter: 'drop-shadow(0 5px 10px rgba(0, 0, 0, 0.15))',
                   animationDelay: '0.1s',
                   position: 'absolute',
@@ -225,21 +225,21 @@ export default function Home() {
                 onKeyDown={(e) => handleKeyPress(e, handleShopClick)}
                 aria-label="Visit the school merchandise shop"
               >
-                <img 
+                <img
                   src={shopImg}
-                  alt="School Merchandise Shop" 
-                  className="w-48 sm:w-48 md:w-56 lg:w-64 h-auto relative"
+                  alt="School Merchandise Shop"
+                  className="w-56 lg:w-64 h-auto relative"
                   style={{ filter: 'drop-shadow(0 8px 15px rgba(0, 0, 0, 0.35))' }}
                 />
                 <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -z-10 w-40 h-10 bg-amber-100/50 rounded-full blur-md
                                 transition-all duration-300 group-hover:bg-amber-200/60 group-hover:w-48 group-hover:h-12"></div>
               </div>
-              
+
               {/* Theater Element */}
-              <div 
-                className="theater-overlay animate-float cursor-pointer transition-all duration-300 ease-out 
+              <div
+                className="theater-overlay animate-float cursor-pointer transition-all duration-300 ease-out
                            hover:transform hover:-translate-y-3 hover:scale-105 hover:drop-shadow-2xl group"
-                style={{ 
+                style={{
                   filter: 'drop-shadow(0 5px 10px rgba(0, 0, 0, 0.15))',
                   animationDelay: '0.2s',
                   position: 'absolute',
@@ -252,24 +252,24 @@ export default function Home() {
                 onKeyDown={(e) => handleKeyPress(e, handleTheaterClick)}
                 aria-label="Visit the school theater page"
               >
-                <img 
+                <img
                   src={theaterImg}
-                  alt="School Theater" 
-                  className="w-48 sm:w-48 md:w-52 lg:w-60 h-auto relative"
+                  alt="School Theater"
+                  className="w-52 lg:w-60 h-auto relative"
                   style={{ filter: 'drop-shadow(0 8px 15px rgba(0, 0, 0, 0.35))' }}
                 />
                 <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -z-10 w-40 h-10 bg-amber-100/50 rounded-full blur-md
                                 transition-all duration-300 group-hover:bg-amber-200/60 group-hover:w-48 group-hover:h-12"></div>
               </div>
             </div>
-            
+
             {/* RIGHT SIDE ELEMENTS */}
             <div className="relative h-full w-1/2">
               {/* Activities Element */}
-              <div 
+              <div
                 className="activities-overlay animate-float cursor-pointer transition-all duration-300 ease-out
                            hover:transform hover:-translate-y-3 hover:scale-105 hover:drop-shadow-2xl group"
-                style={{ 
+                style={{
                   filter: 'drop-shadow(0 5px 10px rgba(0, 0, 0, 0.15))',
                   animationDelay: '0.3s',
                   position: 'absolute',
@@ -282,21 +282,21 @@ export default function Home() {
                 onKeyDown={(e) => handleKeyPress(e, handleActivitiesClick)}
                 aria-label="Visit the school activities page"
               >
-                <img 
+                <img
                   src={activitiesImg}
-                  alt="School Activities" 
-                  className="w-48 sm:w-48 md:w-56 lg:w-64 h-auto relative"
+                  alt="School Activities"
+                  className="w-56 lg:w-64 h-auto relative"
                   style={{ filter: 'drop-shadow(0 8px 15px rgba(0, 0, 0, 0.35))' }}
                 />
                 <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -z-10 w-40 h-10 bg-amber-100/50 rounded-full blur-md
                                 transition-all duration-300 group-hover:bg-amber-200/60 group-hover:w-48 group-hover:h-12"></div>
               </div>
-              
+
               {/* Information Element */}
-              <div 
+              <div
                 className="information-overlay animate-float cursor-pointer transition-all duration-300 ease-out
                            hover:transform hover:-translate-y-3 hover:scale-105 hover:drop-shadow-2xl group"
-                style={{ 
+                style={{
                   filter: 'drop-shadow(0 5px 10px rgba(0, 0, 0, 0.15))',
                   animationDelay: '0.4s',
                   position: 'absolute',
@@ -309,15 +309,88 @@ export default function Home() {
                 onKeyDown={(e) => handleKeyPress(e, handleInformationClick)}
                 aria-label="Visit the school information page"
               >
-                <img 
+                <img
                   src={informationImg}
-                  alt="School Information" 
-                  className="w-48 sm:w-48 md:w-52 lg:w-60 h-auto relative"
+                  alt="School Information"
+                  className="w-52 lg:w-60 h-auto relative"
                   style={{ filter: 'drop-shadow(0 8px 15px rgba(0, 0, 0, 0.35))' }}
                 />
                 <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -z-10 w-40 h-10 bg-amber-100/50 rounded-full blur-md
                                 transition-all duration-300 group-hover:bg-amber-200/60 group-hover:w-48 group-hover:h-12"></div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Interactive elements layout - Mobile */}
+        <div className="md:hidden absolute bottom-0 w-full z-30 pb-16">
+          <div className="grid grid-cols-2 grid-rows-2 gap-0 px-4" style={{ height: '32vh' }}>
+            {/* Theater Element - Top Left */}
+            <div
+              className="flex items-end justify-center cursor-pointer transition-all duration-300 ease-out active:scale-95"
+              onClick={handleTheaterClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => handleKeyPress(e, handleTheaterClick)}
+              aria-label="Visit the school theater page"
+            >
+              <img
+                src={theaterImg}
+                alt="School Theater"
+                className="w-[38vw] max-w-[150px] h-auto"
+                style={{ filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4))' }}
+              />
+            </div>
+
+            {/* Information Element - Top Right */}
+            <div
+              className="flex items-end justify-center cursor-pointer transition-all duration-300 ease-out active:scale-95"
+              onClick={handleInformationClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => handleKeyPress(e, handleInformationClick)}
+              aria-label="Visit the school information page"
+            >
+              <img
+                src={informationImg}
+                alt="School Information"
+                className="w-[38vw] max-w-[150px] h-auto"
+                style={{ filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4))' }}
+              />
+            </div>
+
+            {/* Shop Element - Bottom Left */}
+            <div
+              className="flex items-start justify-center cursor-pointer transition-all duration-300 ease-out active:scale-95"
+              onClick={handleShopClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => handleKeyPress(e, handleShopClick)}
+              aria-label="Visit the school merchandise shop"
+            >
+              <img
+                src={shopImg}
+                alt="School Merchandise Shop"
+                className="w-[38vw] max-w-[150px] h-auto"
+                style={{ filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4))' }}
+              />
+            </div>
+
+            {/* Activities Element - Bottom Right */}
+            <div
+              className="flex items-start justify-center cursor-pointer transition-all duration-300 ease-out active:scale-95"
+              onClick={handleActivitiesClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => handleKeyPress(e, handleActivitiesClick)}
+              aria-label="Visit the school activities page"
+            >
+              <img
+                src={activitiesImg}
+                alt="School Activities"
+                className="w-[38vw] max-w-[150px] h-auto"
+                style={{ filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4))' }}
+              />
             </div>
           </div>
         </div>

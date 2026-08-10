@@ -10,6 +10,7 @@ import { getProduct } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { UniversalPageLayout } from "@/components/UniversalPageLayout";
 import { BlurContainer, BlurCard, BlurActionButton } from "@/components/UniversalBlurComponents";
+import { ShoppingCart } from "lucide-react";
 
 export default function ProductPage() {
   const [match, params] = useRoute("/shop/product/:id");
@@ -21,7 +22,31 @@ export default function ProductPage() {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { addToCart } = useCart();
+  const { addToCart, cartItems } = useCart();
+  const cartItemCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+
+  const handleCartClick = () => {
+    sessionStorage.setItem('cart-referrer', `/shop/product/${params?.id}`);
+    setLocation("/shop/cart");
+  };
+
+  const CartButton = ({ contentVisible }: { contentVisible: boolean }) => (
+    <button
+      onClick={handleCartClick}
+      className="relative p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/15 transition-all duration-300"
+      style={{
+        backdropFilter: contentVisible ? 'blur(20px)' : 'blur(0px)',
+        WebkitBackdropFilter: contentVisible ? 'blur(20px)' : 'blur(0px)',
+      }}
+    >
+      <ShoppingCart className="w-5 h-5 text-white" />
+      {cartItemCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+          {cartItemCount}
+        </span>
+      )}
+    </button>
+  );
 
   // Fetch product data from API
   useEffect(() => {
@@ -134,7 +159,13 @@ export default function ProductPage() {
   }
 
   return (
-    <UniversalPageLayout pageType="shop" title="Product Details" backButtonText="Back" onBackClick={handleBackClick}>
+    <UniversalPageLayout
+      pageType="shop"
+      title="Product Details"
+      backButtonText="Back"
+      onBackClick={handleBackClick}
+      rightElement={({ contentVisible }) => <CartButton contentVisible={contentVisible} />}
+    >
       {({ contentVisible }) => (
         <div className="max-w-6xl mx-auto px-6">
           {/* Product Details */}

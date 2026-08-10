@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "wouter";
+import { useLocation as useWouterLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +42,7 @@ interface CartItem {
 }
 
 export default function EventDetails() {
-  const [, setLocation] = useLocation();
+  const [, setLocation] = useWouterLocation();
   const [eventId, setEventId] = useState<string>("");
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
@@ -280,28 +280,51 @@ export default function EventDetails() {
     });
 
     try {
-      // In a real implementation, we'd upload the files to a server/storage
-      // For now, we'll simulate the file upload by creating URLs
+      // Upload all files to the server first
       const uploadedForms = [];
-      
-      // Process student ID
+
+      // Collect all files to upload
+      const filesToUpload: File[] = [];
+      const fileLabels: string[] = [];
+
       if (formData.studentId) {
-        uploadedForms.push({
-          fileName: 'Student ID',
-          fileUrl: URL.createObjectURL(formData.studentId),
-          fileType: formData.studentId.type
-        });
+        filesToUpload.push(formData.studentId);
+        fileLabels.push('Student ID');
       }
-      
-      // Process custom forms
+
       for (const [formName, file] of Object.entries(formData.customForms)) {
         if (file) {
-          uploadedForms.push({
-            fileName: formName,
-            fileUrl: URL.createObjectURL(file),
-            fileType: file.type
-          });
+          filesToUpload.push(file);
+          fileLabels.push(formName);
         }
+      }
+
+      // Upload files to server
+      if (filesToUpload.length > 0) {
+        const uploadFormData = new FormData();
+        filesToUpload.forEach(file => {
+          uploadFormData.append('forms', file);
+        });
+
+        const uploadResponse = await fetch('/api/form-submissions/upload', {
+          method: 'POST',
+          body: uploadFormData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload forms');
+        }
+
+        const uploadedFiles = await uploadResponse.json();
+
+        // Map uploaded files to form labels
+        uploadedFiles.forEach((uploadedFile: { fileName: string; fileUrl: string; fileType: string }, index: number) => {
+          uploadedForms.push({
+            fileName: fileLabels[index],
+            fileUrl: uploadedFile.fileUrl,
+            fileType: uploadedFile.fileType
+          });
+        });
       }
 
       // Create form submission record
@@ -329,8 +352,19 @@ export default function EventDetails() {
         error: false,
         message: 'Your forms have been submitted successfully. You will receive an email when your request is approved.'
       });
+      
+      // Reset form data
+      setFormData({
+        studentId: null,
+        customForms: {},
+        studentName: '',
+        email: '',
+        quantity: 1,
+        notes: ''
+      });
+      setSelectedTicketType(null);
 
-      // No automatic redirect - user will click "Back to Activities" button
+      // User will click button to redirect
     } catch (error) {
       console.error('Form submission failed:', error);
       setUploadStatus({
@@ -515,27 +549,7 @@ export default function EventDetails() {
               <div>
                 <h3 className="text-2xl font-bold text-white mb-6">Approval Request Form</h3>
                 
-                {/* Full Screen Thank You Overlay */}
-                {uploadStatus.success && (
-                  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-                    <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-2xl p-12 text-center max-w-md mx-4">
-                      <div className="text-6xl mb-6">✅</div>
-                      <h2 className="text-3xl font-bold text-white mb-4">Thank You!</h2>
-                      <p className="text-gray-300 mb-6">
-                        Your form submission has been received. Please check your email in the next couple of days to purchase your ticket once approved.
-                      </p>
-                      <p className="text-sm text-gray-400 mb-6">
-                        You will receive an email notification when your request is reviewed.
-                      </p>
-                      <PrimaryButton 
-                        onClick={() => setLocation('/activities')}
-                        className="px-8 py-3"
-                      >
-                        Back to Activities
-                      </PrimaryButton>
-                    </div>
-                  </div>
-                )}
+                {/* Full Screen Thank You Overlay - Moved outside of main content */}
 
                 {uploadStatus.error && (
                   <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
@@ -719,7 +733,12 @@ export default function EventDetails() {
                         <Input
                           type="number"
                           value={formData.quantity}
-                          onChange={(e) => handleQuantityChange(parseInt(e.target.value))}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value);
+                            if (!isNaN(value)) {
+                              handleQuantityChange(value);
+                            }
+                          }}
                           className="w-16 text-center mx-2 bg-white/5 border-white/20 text-white"
                           min="1"
                           max={getMaxTickets() || 10}
@@ -757,7 +776,135 @@ export default function EventDetails() {
                   </div>
                 </div>
               </div>
-            )}          </div>
+            )}
+          </div>
+          
+          {/* Success Modal - Fixed positioning and styling */}
+          {uploadStatus.success && (
+          <>
+            {/* Backdrop with blur */}
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]" />
+          
+          {/* Modal */}
+          <div className="fixed inset-0 z-[9999] overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <div className="relative transform overflow-hidden rounded-3xl bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl px-4 pb-4 pt-5 text-left transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-8">
+                <div className="text-center">
+                  {/* Success Icon */}
+                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-500/20 backdrop-blur-xl border border-green-500/30 mb-6 shadow-[0_0_50px_rgba(34,197,94,0.3)]">
+                    <svg className="h-14 w-14 text-green-400 drop-shadow-[0_0_20px_rgba(34,197,94,0.8)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  
+                  {/* Title */}
+                  <h3 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent mb-4">
+                    Success!
+                  </h3>
+                  
+                  {/* Message */}
+                  <div className="mb-8">
+                    <p className="text-white text-lg mb-3">
+                      Your form has been submitted for approval
+                    </p>
+                    <p className="text-white/60 text-sm leading-relaxed">
+                      You'll receive an email notification once your request is reviewed. After approval, you'll be able to complete your ticket purchase.
+                    </p>
+                  </div>
+                  
+                  {/* Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button
+                      type="button"
+                      className="inline-flex w-full justify-center rounded-2xl bg-gradient-to-r from-green-500/80 to-emerald-500/80 backdrop-blur-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_32px_rgba(34,197,94,0.3)] hover:shadow-[0_8px_40px_rgba(34,197,94,0.4)] hover:scale-[1.02] transition-all duration-200 sm:w-auto"
+                      onClick={() => {
+                        setUploadStatus({ uploading: false, success: false, error: false, message: '' });
+                        window.location.href = '/activities';
+                      }}
+                    >
+                      Back to Activities
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex w-full justify-center rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-white/10 hover:scale-[1.02] transition-all duration-200 sm:w-auto"
+                      onClick={() => {
+                        setUploadStatus({ uploading: false, success: false, error: false, message: '' });
+                        window.location.href = '/';
+                      }}
+                    >
+                      Go to Home
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+      
+      {/* Error Toast - Glassmorphism style */}
+      {uploadStatus.error && !uploadStatus.uploading && (
+        <div className="fixed bottom-4 right-4 z-[9999] max-w-md animate-in slide-in-from-right duration-300">
+          <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/30 rounded-2xl shadow-[0_8px_32px_rgba(239,68,68,0.3)] p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.6)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3 flex-1">
+                <p className="text-sm font-semibold text-white">
+                  Submission Error
+                </p>
+                <p className="mt-1 text-sm text-white/70">
+                  {uploadStatus.message}
+                </p>
+              </div>
+              <div className="ml-4 flex-shrink-0 flex">
+                <button
+                  className="inline-flex text-white/60 hover:text-white transition-all duration-200 hover:scale-110"
+                  onClick={() => setUploadStatus(prev => ({ ...prev, error: false, message: '' }))}
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Loading Overlay - Glassmorphism style */}
+      {uploadStatus.uploading && (
+        <>
+          {/* Backdrop with blur */}
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]" />
+          
+          {/* Loading Modal */}
+          <div className="fixed inset-0 z-[9999] overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="relative transform overflow-hidden rounded-3xl bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl px-4 pb-4 pt-5 text-center sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
+                <div>
+                  {/* Animated spinner with glow */}
+                  <div className="relative">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white/80 mx-auto shadow-[0_0_30px_rgba(255,255,255,0.5)]"></div>
+                    <div className="absolute inset-0 animate-pulse rounded-full bg-white/10 blur-xl"></div>
+                  </div>
+                  <div className="mt-6">
+                    <p className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                      Submitting...
+                    </p>
+                    <p className="mt-2 text-sm text-white/60">
+                      {uploadStatus.message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          </>
+        )}
         </div>
       )}
     </UniversalPageLayout>

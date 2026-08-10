@@ -12,7 +12,7 @@ export const BlurBackButton: React.FC<{
   onClick?: () => void;
 }> = ({ contentVisible, className, children, onClick }) => {
   const [, setLocation] = useLocation();
-  
+
   const handleBackClick = () => {
     if (onClick) {
       onClick();
@@ -63,7 +63,7 @@ export const BlurContainer: React.FC<{
   onClick?: () => void;
 }> = ({ contentVisible, delay = '200ms', className, children, onClick }) => {
   return (
-    <div 
+    <div
       className={cn(
         "bg-white/5 border border-white/10 shadow-2xl rounded-xl transition-all duration-700 ease-out",
         className
@@ -92,9 +92,9 @@ export const BlurCard: React.FC<{
   onClick?: () => void;
 }> = ({ contentVisible, delay = '400ms', index = 0, className, children, onClick }) => {
   const calculatedDelay = index > 0 ? `${400 + (index * 50)}ms` : delay;
-  
+
   return (
-    <ThemedCard 
+    <ThemedCard
       className={cn(
         "bg-white/5 border border-white/10 shadow-2xl hover:shadow-2xl transition-all hover:scale-[1.01] cursor-pointer",
         className
@@ -126,8 +126,8 @@ export const BlurPageHeader: React.FC<{
   className?: string;
 }> = ({ contentVisible, title, showBackButton = true, backButtonText, onBackClick, rightElement, className }) => {
   return (
-    <div 
-      className={cn("flex items-center justify-between mb-8 transition-all duration-700 ease-out", className)}
+    <div
+      className={cn("flex items-center justify-between mb-6 md:mb-8 transition-all duration-700 ease-out", className)}
       style={{
         opacity: contentVisible ? 1 : 0,
         transform: contentVisible ? 'translateY(0)' : 'translateY(-20px)',
@@ -156,13 +156,15 @@ export const BlurPageHeader: React.FC<{
 // Universal Cart/Action Button with consistent styling
 export const BlurActionButton: React.FC<{
   contentVisible: boolean;
-  onClick: () => void;
+  onClick?: () => void;
+  disabled?: boolean;
   className?: string;
   children: React.ReactNode;
-}> = ({ contentVisible, onClick, className, children }) => {
+}> = ({ contentVisible, onClick, disabled, className, children }) => {
   return (
-    <PrimaryButton 
-      onClick={onClick} 
+    <PrimaryButton
+      onClick={onClick}
+      disabled={disabled}
       className={cn(
         "bg-white/5 border border-white/10 shadow-2xl hover:bg-white/20 text-white px-4 h-10 text-sm font-medium rounded-lg flex items-center space-x-2",
         className

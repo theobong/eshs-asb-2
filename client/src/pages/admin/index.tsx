@@ -60,6 +60,7 @@ function VideoForm({ video, onSubmit, onCancel }: {
           onChange={(e) => setFormData({...formData, title: e.target.value})}
           placeholder="Enter video title"
           required
+          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
         />
       </div>
 
@@ -70,6 +71,7 @@ function VideoForm({ video, onSubmit, onCancel }: {
           onChange={(e) => setFormData({...formData, description: e.target.value})}
           placeholder="Video description"
           required
+          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
         />
       </div>
 
@@ -81,6 +83,7 @@ function VideoForm({ video, onSubmit, onCancel }: {
             onChange={(e) => setFormData({...formData, videoUrl: e.target.value})}
             placeholder="URL to video"
             required
+            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
           />
         </div>
         <div>
@@ -104,6 +107,7 @@ function VideoForm({ video, onSubmit, onCancel }: {
             onChange={(e) => setFormData({...formData, author: e.target.value})}
             placeholder="Video author"
             required
+            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
           />
         </div>
         <div>
@@ -207,9 +211,10 @@ function ProductForm({ product, onSubmit, onCancel }: {
             onChange={(e) => setFormData({...formData, name: e.target.value})}
             placeholder="Enter product name"
             required
+            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
           />
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-white mb-2">Price ($)</label>
@@ -220,6 +225,7 @@ function ProductForm({ product, onSubmit, onCancel }: {
               placeholder="0.00"
               step="0.01"
               required
+              className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
             />
           </div>
           <div>
@@ -228,7 +234,7 @@ function ProductForm({ product, onSubmit, onCancel }: {
               value={formData.category || 'Apparel'}
               onValueChange={(value: 'Apparel' | 'Accessories') => setFormData({...formData, category: value})}
             >
-              <SelectTrigger>
+              <SelectTrigger className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
@@ -246,68 +252,57 @@ function ProductForm({ product, onSubmit, onCancel }: {
             onChange={(e) => setFormData({...formData, organization: e.target.value})}
             placeholder="ASB, Drama Club, etc."
             required
+            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
           />
         </div>
 
-        {/* Conditional stock fields based on category */}
-        {formData.category === 'Apparel' ? (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-white">Size & Stock</label>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={addSizeStock}
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20"
-              >
-                <PlusCircle className="w-4 h-4 mr-1" />
-                Add Size
-              </Button>
-            </div>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {(formData.sizeStock || []).map((sizeStock, index) => (
-                <div key={index} className="flex gap-2 items-center">
-                  <Input
-                    placeholder="Size (e.g., S, M, L)"
-                    value={sizeStock.size}
-                    onChange={(e) => updateSizeStock(index, 'size', e.target.value)}
-                    className="flex-1"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Stock"
-                    value={sizeStock.stock}
-                    onChange={(e) => updateSizeStock(index, 'stock', parseInt(e.target.value) || 0)}
-                    className="w-24"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => removeSizeStock(index)}
-                    className="p-2 bg-red-600/20 hover:bg-red-600/40 text-red-200 border-red-600/30"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-              {(formData.sizeStock || []).length === 0 && (
-                <p className="text-sm text-gray-400 italic">No sizes added yet. Click "Add Size" to get started.</p>
-              )}
-            </div>
+        {/* Size & Stock fields */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-white">Size & Stock</label>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={addSizeStock}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+            >
+              <PlusCircle className="w-4 h-4 mr-1" />
+              Add Size
+            </Button>
           </div>
-        ) : (
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Stock</label>
-            <Input
-              type="number"
-              value={formData.stock || ''}
-              onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value) || 0})}
-              placeholder="0"
-            />
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {(formData.sizeStock || []).map((sizeStock, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <Input
+                  placeholder="Size (e.g., S, M, L, One Size)"
+                  value={sizeStock.size}
+                  onChange={(e) => updateSizeStock(index, 'size', e.target.value)}
+                  className="flex-1 bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
+                />
+                <Input
+                  type="number"
+                  placeholder="Stock"
+                  value={sizeStock.stock}
+                  onChange={(e) => updateSizeStock(index, 'stock', parseInt(e.target.value) || 0)}
+                  className="w-24 bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => removeSizeStock(index)}
+                  className="p-2 bg-red-600/20 hover:bg-red-600/40 text-red-200 border-red-600/30"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+            {(formData.sizeStock || []).length === 0 && (
+              <p className="text-sm text-gray-400 italic">No sizes added yet. Click "Add Size" to get started.</p>
+            )}
           </div>
-        )}
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-white mb-2">Description</label>
@@ -316,6 +311,7 @@ function ProductForm({ product, onSubmit, onCancel }: {
             onChange={(e) => setFormData({...formData, description: e.target.value})}
             placeholder="Product description"
             rows={3}
+            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
           />
         </div>
 
@@ -427,7 +423,7 @@ function EventForm({ event, onSubmit, onCancel }: {
   });
   
   const [newCustomForm, setNewCustomForm] = useState({ name: '', pdfUrl: '', required: true });
-  const [newTicketType, setNewTicketType] = useState({ name: '', description: '', price: '', maxTickets: '' });
+  const [newTicketType, setNewTicketType] = useState({ name: '', description: '', price: '' });
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -496,19 +492,17 @@ function EventForm({ event, onSubmit, onCancel }: {
 
   const addTicketType = () => {
     const price = parseFloat(newTicketType.price);
-    const maxTickets = parseInt(newTicketType.maxTickets);
-    
-    if (newTicketType.name.trim() && newTicketType.description.trim() && price > 0 && maxTickets > 0) {
+
+    if (newTicketType.name.trim() && newTicketType.description.trim() && price > 0) {
       setFormData({
         ...formData,
-        ticketTypes: [...(formData.ticketTypes || []), { 
-          name: newTicketType.name.trim(), 
+        ticketTypes: [...(formData.ticketTypes || []), {
+          name: newTicketType.name.trim(),
           description: newTicketType.description.trim(),
-          price: price,
-          maxTickets: maxTickets
+          price: price
         }]
       });
-      setNewTicketType({ name: '', description: '', price: '', maxTickets: '' });
+      setNewTicketType({ name: '', description: '', price: '' });
     }
   };
 
@@ -622,12 +616,6 @@ function EventForm({ event, onSubmit, onCancel }: {
               value={newTicketType.description}
               onChange={(e) => setNewTicketType({...newTicketType, description: e.target.value})}
             />
-            <Input
-              type="number"
-              placeholder="Max Tickets"
-              value={newTicketType.maxTickets}
-              onChange={(e) => setNewTicketType({...newTicketType, maxTickets: e.target.value})}
-            />
           </div>
         </div>
 
@@ -635,7 +623,7 @@ function EventForm({ event, onSubmit, onCancel }: {
         <div className="space-y-2 max-h-40 overflow-y-auto">
           {(formData.ticketTypes || []).map((ticketType, index) => (
             <div key={index} className="flex gap-2 items-center p-3 bg-white/5 rounded-lg border border-white/10">
-              <div className="flex-1 grid grid-cols-4 gap-2 text-sm">
+              <div className="flex-1 grid grid-cols-3 gap-2 text-sm">
                 <div>
                   <p className="font-medium text-white">{ticketType.name}</p>
                 </div>
@@ -644,9 +632,6 @@ function EventForm({ event, onSubmit, onCancel }: {
                 </div>
                 <div>
                   <p className="text-green-400">${ticketType.price.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-blue-400">{ticketType.maxTickets} tickets</p>
                 </div>
               </div>
               <Button
@@ -825,6 +810,7 @@ function AnnouncementForm({ announcement, onSubmit, onCancel }: {
           onChange={(e) => setFormData({...formData, title: e.target.value})}
           placeholder="Enter announcement title"
           required
+          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
         />
       </div>
 
@@ -836,13 +822,14 @@ function AnnouncementForm({ announcement, onSubmit, onCancel }: {
           placeholder="Announcement content"
           rows={4}
           required
+          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
         />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-white mb-2">Priority</label>
         <Select value={formData.priority || 'medium'} onValueChange={(value: 'high' | 'medium' | 'low') => setFormData({...formData, priority: value})}>
-          <SelectTrigger>
+          <SelectTrigger className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white">
             <SelectValue placeholder="Select priority" />
           </SelectTrigger>
           <SelectContent>
@@ -854,10 +841,10 @@ function AnnouncementForm({ announcement, onSubmit, onCancel }: {
       </div>
 
       <div className="flex gap-2 pt-4">
-        <Button type="submit">
+        <Button type="submit" className="bg-blue-600/20 hover:bg-blue-600/40 backdrop-blur text-blue-200 border border-blue-600/30">
           {announcement ? 'Update Announcement' : 'Add Announcement'}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} className="bg-white/5 hover:bg-white/10 text-white border-white/20">
           Cancel
         </Button>
       </div>
@@ -918,11 +905,13 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
           onChange={(e) => setFormData({...formData, position: e.target.value})}
           placeholder="ASB President, Secretary, etc."
           required
+          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
         />
-      </div>      <div>
+      </div>
+      <div>
         <label className="block text-sm font-medium text-white mb-2">Grade Level</label>
         <Select value={formData.gradeLevel || ''} onValueChange={(value: string) => setFormData({...formData, gradeLevel: value})}>
-          <SelectTrigger>
+          <SelectTrigger className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white">
             <SelectValue placeholder="Select grade level" />
           </SelectTrigger>
           <SelectContent>
@@ -944,6 +933,7 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
           placeholder="Brief bio for this position"
           rows={2}
           required
+          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
         />
       </div>
 
@@ -955,6 +945,7 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
           placeholder="Position description and responsibilities"
           rows={3}
           required
+          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
         />
       </div>
 
@@ -962,12 +953,12 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
       <div>
         <div className="flex justify-between items-center mb-2">
           <label className="block text-sm font-medium text-white">Current Representatives</label>
-          <Button type="button" onClick={addRepresentative} variant="outline" size="sm">
+          <Button type="button" onClick={addRepresentative} variant="outline" size="sm" className="bg-white/5 hover:bg-white/10 text-white border-white/20">
             <PlusCircle className="h-4 w-4 mr-1" />
             Add Representative
           </Button>
         </div>
-        
+
         {formData.currentRepresentatives && formData.currentRepresentatives.length > 0 ? (
           <div className="space-y-3">
             {formData.currentRepresentatives.map((rep, index) => (
@@ -979,6 +970,7 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
                       value={rep.name}
                       onChange={(e) => updateRepresentative(index, 'name', e.target.value)}
                       placeholder="Representative name"
+                      className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
                     />
                   </div>
                   <div>
@@ -988,6 +980,7 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
                       value={rep.email || ''}
                       onChange={(e) => updateRepresentative(index, 'email', e.target.value)}
                       placeholder="dr@doofenshmirtz.com"
+                      className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
                     />
                   </div>
                 </div>
@@ -998,6 +991,7 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
                     onChange={(e) => updateRepresentative(index, 'bio', e.target.value)}
                     placeholder="Representative bio"
                     rows={2}
+                    className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
                   />
                 </div>
                 <div className="mb-2">
@@ -1029,10 +1023,10 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
       </div>
 
       <div className="flex gap-2 pt-4">
-        <Button type="submit">
+        <Button type="submit" className="bg-blue-600/20 hover:bg-blue-600/40 backdrop-blur text-blue-200 border border-blue-600/30">
           {member ? 'Update Position' : 'Add Position'}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} className="bg-white/5 hover:bg-white/10 text-white border-white/20">
           Cancel
         </Button>
       </div>
@@ -1074,6 +1068,7 @@ function ClubForm({ club, onSubmit, onCancel }: {
             onChange={(e) => setFormData({...formData, name: e.target.value})}
             placeholder="Drama Club"
             required
+            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
           />
         </div>
       </div>
@@ -1085,6 +1080,7 @@ function ClubForm({ club, onSubmit, onCancel }: {
           onChange={(e) => setFormData({...formData, description: e.target.value})}
           placeholder="Club description"
           rows={3}
+          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
         />
       </div>
 
@@ -1096,6 +1092,7 @@ function ClubForm({ club, onSubmit, onCancel }: {
           onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
           placeholder="master@oogway.com"
           required
+          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
         />
       </div>
 
@@ -1124,10 +1121,10 @@ function ClubForm({ club, onSubmit, onCancel }: {
       </div>
 
       <div className="flex gap-2 pt-4">
-        <Button type="submit">
+        <Button type="submit" className="bg-blue-600/20 hover:bg-blue-600/40 backdrop-blur text-blue-200 border border-blue-600/30">
           {club ? 'Update Club' : 'Add Club'}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} className="bg-white/5 hover:bg-white/10 text-white border-white/20">
           Cancel
         </Button>
       </div>
@@ -1167,11 +1164,11 @@ export default function AdminMongoDB() {
   // Form submissions filtering and search
   const [submissionEventFilter, setSubmissionEventFilter] = useState<string>('all');
   const [submissionSearch, setSubmissionSearch] = useState<string>('');
-  const [submissionStatusFilter, setSubmissionStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  
+  const [submissionStatusFilter, setSubmissionStatusFilter] = useState<'all' | 'pending' | 'approved_paid' | 'approved_unpaid' | 'rejected'>('all');
+  const [submissionSortOrder, setSubmissionSortOrder] = useState<'newest' | 'oldest'>('newest');
+
   // Pagination states
-  const [pendingDisplayCount, setPendingDisplayCount] = useState(5);
-  const [processedDisplayCount, setProcessedDisplayCount] = useState(5);
+  const [submissionDisplayCount, setSubmissionDisplayCount] = useState(10);
   
   // Rejection modal states
   const [rejectionSubmissionId, setRejectionSubmissionId] = useState<string>('');
@@ -1182,6 +1179,16 @@ export default function AdminMongoDB() {
   const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
 
   const [, setLocation] = useLocation();
+
+  // Tab persistence
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('admin-active-tab') || 'products';
+  });
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    localStorage.setItem('admin-active-tab', value);
+  };
 
   // Check authentication status on mount
   useEffect(() => {
@@ -1530,19 +1537,38 @@ export default function AdminMongoDB() {
 
 
   // Filter form submissions based on search and filter criteria
-  const filteredFormSubmissions = formSubmissions.filter(submission => {
-    // Filter by event
-    const eventMatch = submissionEventFilter === 'all' || submission.eventId === submissionEventFilter;
-    
-    // Filter by status
-    const statusMatch = submissionStatusFilter === 'all' || submission.status === submissionStatusFilter;
-    
-    // Filter by search term (student name)
-    const searchMatch = submissionSearch === '' || 
-      submission.studentName.toLowerCase().includes(submissionSearch.toLowerCase());
-    
-    return eventMatch && statusMatch && searchMatch;
-  });
+  const filteredFormSubmissions = formSubmissions
+    .filter(submission => {
+      // Filter by event (handle both populated and non-populated eventId)
+      const eventIdStr = typeof submission.eventId === 'object' && submission.eventId ?
+        (submission.eventId as any)._id : submission.eventId;
+      const eventMatch = submissionEventFilter === 'all' || eventIdStr === submissionEventFilter;
+
+      // Filter by status (with paid/unpaid distinction for approved)
+      let statusMatch = false;
+      if (submissionStatusFilter === 'all') {
+        statusMatch = true;
+      } else if (submissionStatusFilter === 'pending') {
+        statusMatch = submission.status === 'pending';
+      } else if (submissionStatusFilter === 'rejected') {
+        statusMatch = submission.status === 'rejected';
+      } else if (submissionStatusFilter === 'approved_paid') {
+        statusMatch = submission.status === 'paid';
+      } else if (submissionStatusFilter === 'approved_unpaid') {
+        statusMatch = submission.status === 'approved';
+      }
+
+      // Filter by search term (student name)
+      const searchMatch = submissionSearch === '' ||
+        submission.studentName.toLowerCase().includes(submissionSearch.toLowerCase());
+
+      return eventMatch && statusMatch && searchMatch;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.submissionDate).getTime();
+      const dateB = new Date(b.submissionDate).getTime();
+      return submissionSortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
 
   // Send email notification (This would typically be done server-side)
   const sendEmailNotification = async (to: string, subject: string, message: string) => {
@@ -1893,47 +1919,65 @@ ESHS ASB Team
             </Button>
           </div>
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-6">
-              <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <h3 className="text-sm font-medium text-gray-300">Products</h3>
-                <Package className="h-4 w-4 text-blue-400" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-6 mb-4 md:mb-8">
+            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-3 md:p-6">
+              <div className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2">
+                <h3 className="text-xs md:text-sm font-medium text-gray-300">Products</h3>
+                <Package className="h-3 w-3 md:h-4 md:w-4 text-blue-400" />
               </div>
-              <div className="text-2xl font-bold text-white">{products.length}</div>
-            </div>
-            
-            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-6">
-              <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <h3 className="text-sm font-medium text-gray-300">Events</h3>
-                <Calendar className="h-4 w-4 text-green-400" />
-              </div>
-              <div className="text-2xl font-bold text-white">{events.length}</div>
+              <div className="text-xl md:text-2xl font-bold text-white">{products.length}</div>
             </div>
 
-            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-6">
-              <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <h3 className="text-sm font-medium text-gray-300">Activities</h3>
-                <Users className="h-4 w-4 text-purple-400" />
+            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-3 md:p-6">
+              <div className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2">
+                <h3 className="text-xs md:text-sm font-medium text-gray-300">Events</h3>
+                <Calendar className="h-3 w-3 md:h-4 md:w-4 text-green-400" />
               </div>
-              <div className="text-2xl font-bold text-white">{clubs.length}</div>
+              <div className="text-xl md:text-2xl font-bold text-white">{events.length}</div>
             </div>
 
-            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-6">
-              <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <h3 className="text-sm font-medium text-gray-300">Submissions</h3>
-                <FileText className="h-4 w-4 text-yellow-400" />
+            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-3 md:p-6">
+              <div className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2">
+                <h3 className="text-xs md:text-sm font-medium text-gray-300">Activities</h3>
+                <Users className="h-3 w-3 md:h-4 md:w-4 text-purple-400" />
               </div>
-              <div className="text-2xl font-bold text-white">{formSubmissions.length}</div>
+              <div className="text-xl md:text-2xl font-bold text-white">{clubs.length}</div>
+            </div>
+
+            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-3 md:p-6">
+              <div className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2">
+                <h3 className="text-xs md:text-sm font-medium text-gray-300">Submissions</h3>
+                <FileText className="h-3 w-3 md:h-4 md:w-4 text-yellow-400" />
+              </div>
+              <div className="text-xl md:text-2xl font-bold text-white">{formSubmissions.length}</div>
             </div>
           </div>          {/* Main Tabs */}
-          <Tabs defaultValue="products" className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-6 bg-white/[0.02] backdrop-blur-3xl border border-white/10">
-              <TabsTrigger value="products" className="text-white">Merch</TabsTrigger>
-              <TabsTrigger value="events" className="text-white">Activities</TabsTrigger>
-              <TabsTrigger value="orders" className="text-white">Orders</TabsTrigger>
-              <TabsTrigger value="submissions" className="text-white">Form Submissions</TabsTrigger>
-              <TabsTrigger value="information" className="text-white">Information</TabsTrigger>
-              <TabsTrigger value="birds-eye-view" className="text-white">Birds Eye View</TabsTrigger>
+              <TabsTrigger value="products" className="text-white">
+                <Package className="h-4 w-4 md:hidden" />
+                <span className="hidden md:inline">Merch</span>
+              </TabsTrigger>
+              <TabsTrigger value="events" className="text-white">
+                <Calendar className="h-4 w-4 md:hidden" />
+                <span className="hidden md:inline">Activities</span>
+              </TabsTrigger>
+              <TabsTrigger value="orders" className="text-white">
+                <DollarSign className="h-4 w-4 md:hidden" />
+                <span className="hidden md:inline">Orders</span>
+              </TabsTrigger>
+              <TabsTrigger value="submissions" className="text-white">
+                <FileText className="h-4 w-4 md:hidden" />
+                <span className="hidden md:inline">Forms</span>
+              </TabsTrigger>
+              <TabsTrigger value="information" className="text-white">
+                <Info className="h-4 w-4 md:hidden" />
+                <span className="hidden md:inline">Info</span>
+              </TabsTrigger>
+              <TabsTrigger value="birds-eye-view" className="text-white">
+                <Eye className="h-4 w-4 md:hidden" />
+                <span className="hidden md:inline">Theater</span>
+              </TabsTrigger>
             </TabsList>
 
             {/* Products Tab */}
@@ -2062,7 +2106,7 @@ ESHS ASB Team
                           <p><strong>Ticket Types:</strong></p>
                           {event.ticketTypes.map((ticket, idx) => (
                             <div key={idx} className="ml-4 text-sm">
-                              {ticket.name}: ${ticket.price} (Max: {ticket.maxTickets})
+                              {ticket.name}: ${ticket.price}
                             </div>
                           ))}
                         </div>
@@ -2076,9 +2120,8 @@ ESHS ASB Team
 
             {/* Orders Tab */}
             <TabsContent value="orders" className="space-y-6">
-              <OrdersManagement 
+              <OrdersManagement
                 purchases={purchases}
-                formSubmissions={formSubmissions}
                 onUpdatePurchase={(id, data) => {
                   setPurchases(purchases.map(p => p._id === id ? { ...p, ...data } : p));
                 }}
@@ -2091,20 +2134,6 @@ ESHS ASB Team
 
             {/* Form Submissions Tab */}
             <TabsContent value="submissions" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-white">Form Submissions</h2>                <div className="flex gap-3">
-                  <Badge variant="outline" className="bg-yellow-600/20 border-yellow-600/30 text-yellow-200 text-xs px-2 py-1">
-                    Pending: {filteredFormSubmissions.filter(sub => sub.status === 'pending').length}
-                  </Badge>
-                  <Badge variant="outline" className="bg-green-600/20 border-green-600/30 text-green-200 text-xs px-2 py-1">
-                    Approved: {filteredFormSubmissions.filter(sub => sub.status === 'approved').length}
-                  </Badge>
-                  <Badge variant="outline" className="bg-red-600/20 border-red-600/30 text-red-200 text-xs px-2 py-1">
-                    Rejected: {filteredFormSubmissions.filter(sub => sub.status === 'rejected').length}
-                  </Badge>
-                </div>
-              </div>
-
               {/* Filter and Search Controls */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-4">
                 <div>
@@ -2125,14 +2154,15 @@ ESHS ASB Team
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Filter by Status</label>
-                  <Select value={submissionStatusFilter} onValueChange={(value: 'all' | 'pending' | 'approved' | 'rejected') => setSubmissionStatusFilter(value)}>
+                  <Select value={submissionStatusFilter} onValueChange={(value: 'all' | 'pending' | 'approved_paid' | 'approved_unpaid' | 'rejected') => setSubmissionStatusFilter(value)}>
                     <SelectTrigger className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white shadow-lg">
                       <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Statuses</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="approved_unpaid">Approved (Unpaid)</SelectItem>
+                      <SelectItem value="approved_paid">Approved (Paid)</SelectItem>
                       <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
@@ -2148,23 +2178,63 @@ ESHS ASB Team
                   />
                 </div>
               </div>
-              
-              {/* Pending Approvals */}
+
+              {/* Single Submissions List */}
               <Card className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center">
-                    <Calendar className="w-5 h-5 mr-2 text-yellow-400" /> 
-                    Pending Approvals (Total: {filteredFormSubmissions.filter(submission => submission.status === 'pending').length})
-                  </CardTitle>
+                <CardHeader className="pb-4">
+                  <div className="flex justify-between items-center flex-wrap gap-3">
+                    <div className="flex gap-3 flex-wrap">
+                      <Badge variant="outline" className="bg-yellow-600/20 border-yellow-600/30 text-yellow-200 text-xs px-2 py-1">
+                        Pending: {formSubmissions.filter(sub => sub.status === 'pending').length}
+                      </Badge>
+                      <Badge variant="outline" className="bg-orange-500/20 border-orange-500/30 text-orange-200 text-xs px-2 py-1">
+                        Approved (Unpaid): {formSubmissions.filter(sub => sub.status === 'approved').length}
+                      </Badge>
+                      <Badge variant="outline" className="bg-green-600/20 border-green-600/30 text-green-200 text-xs px-2 py-1">
+                        Approved (Paid): {formSubmissions.filter(sub => sub.status === 'paid').length}
+                      </Badge>
+                      <Badge variant="outline" className="bg-red-600/20 border-red-600/30 text-red-200 text-xs px-2 py-1">
+                        Rejected: {formSubmissions.filter(sub => sub.status === 'rejected').length}
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSubmissionSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+                      className="bg-white/5 hover:bg-white/10 text-white border-white/20"
+                    >
+                      {submissionSortOrder === 'newest' ? '↓ Newest First' : '↑ Oldest First'}
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">                    {filteredFormSubmissions.filter(submission => submission.status === 'pending').slice(0, pendingDisplayCount).map((submission) => {
+                  <div className="space-y-4">
+                    {filteredFormSubmissions.slice(0, submissionDisplayCount).map((submission) => {
                       // Handle both populated and non-populated eventId
-                      const eventIdStr = typeof submission.eventId === 'object' && submission.eventId ? 
+                      const eventIdStr = typeof submission.eventId === 'object' && submission.eventId ?
                         (submission.eventId as any)._id : submission.eventId;
-                      const relatedEvent = events.find(e => e._id === eventIdStr) || 
+                      const relatedEvent = events.find(e => e._id === eventIdStr) ||
                         (typeof submission.eventId === 'object' ? submission.eventId as any : null);
-                      
+
+                      // Determine status color
+                      const getStatusColor = () => {
+                        switch (submission.status) {
+                          case 'pending': return "bg-yellow-600/20 border-yellow-600 text-yellow-200";
+                          case 'approved': return "bg-orange-500/20 border-orange-500 text-orange-200";
+                          case 'paid': return "bg-green-600/20 border-green-600 text-green-200";
+                          case 'rejected': return "bg-red-600/20 border-red-600 text-red-200";
+                          default: return "bg-gray-600/20 border-gray-600 text-gray-200";
+                        }
+                      };
+
+                      const getStatusLabel = () => {
+                        switch (submission.status) {
+                          case 'approved': return 'Approved (Unpaid)';
+                          case 'paid': return 'Paid';
+                          default: return submission.status;
+                        }
+                      };
+
                       return (
                         <div key={submission._id} className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-lg rounded-lg p-4">
                           <div className="flex justify-between items-start mb-2">
@@ -2172,11 +2242,11 @@ ESHS ASB Team
                               <h4 className="text-white font-semibold text-lg">{submission.studentName}</h4>
                               <p className="text-sm text-gray-400">{submission.email}</p>
                             </div>
-                            <Badge className="bg-yellow-600/20 border-yellow-600 text-yellow-200">
-                              {submission.status}
+                            <Badge className={getStatusColor()}>
+                              {getStatusLabel()}
                             </Badge>
                           </div>
-                          
+
                           {relatedEvent && (
                             <div className="bg-white/10 rounded-lg p-2 mb-3">
                               <p className="text-white font-medium">{relatedEvent.title}</p>
@@ -2187,205 +2257,115 @@ ESHS ASB Team
                               </div>
                             </div>
                           )}
-                          
-                          <div className="flex items-center gap-2 mb-3">
+
+                          <div className="flex items-center gap-2 mb-3 flex-wrap">
                             {submission.ticketType && (
                               <Badge variant="outline" className="bg-purple-500/20 border-purple-500/30 text-purple-200">
                                 {submission.ticketType.name} - ${submission.ticketType.price.toFixed(2)}
                               </Badge>
                             )}
                             <Badge variant="outline" className="bg-gray-500/20 border-gray-500/30 text-gray-200">
-                              Submitted: {new Date(submission.submissionDate).toLocaleDateString()} at {new Date(submission.submissionDate).toLocaleTimeString()}
+                              {new Date(submission.submissionDate).toLocaleDateString()} {new Date(submission.submissionDate).toLocaleTimeString()}
                             </Badge>
+                            {submission.reviewedAt && (
+                              <Badge variant="outline" className="bg-blue-500/20 border-blue-500/30 text-blue-200">
+                                Reviewed: {new Date(submission.reviewedAt).toLocaleDateString()}
+                              </Badge>
+                            )}
                           </div>
-                          
-                          <div className="mb-3">
-                            <p className="text-sm font-medium text-white mb-1">Uploaded Forms:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {submission.forms.map((form, index) => (
-                                <div key={index} className="flex items-center bg-white/10 px-3 py-1 rounded-full text-xs text-white">
-                                  <FileText className="w-3 h-3 mr-1" />
-                                  {form.fileName}
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-5 w-5 p-0 ml-1 text-blue-300 hover:text-blue-100"
-                                    onClick={() => window.open(form.fileUrl, '_blank')}
-                                  >
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ))}
+
+                          {/* Uploaded Forms */}
+                          {submission.forms && submission.forms.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-sm font-medium text-white mb-1">Uploaded Forms:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {submission.forms.map((form, index) => (
+                                  <div key={index} className="flex items-center bg-white/10 px-3 py-1 rounded-full text-xs text-white">
+                                    <FileText className="w-3 h-3 mr-1" />
+                                    {form.fileName}
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-5 w-5 p-0 ml-1 text-blue-300 hover:text-blue-100"
+                                      onClick={() => window.open(form.fileUrl, '_blank')}
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                          
+                          )}
+
+                          {/* Notes */}
                           {submission.notes && (
                             <div className="bg-white/5 rounded p-2 mb-3">
                               <p className="text-xs text-gray-400">Notes:</p>
                               <p className="text-sm text-white">{submission.notes}</p>
                             </div>
                           )}
-                          
+
+                          {/* Rejection Reason */}
+                          {submission.status === 'rejected' && submission.rejectionReason && (
+                            <div className="bg-red-500/10 rounded p-2 mb-3">
+                              <p className="text-xs text-red-400">Rejection Reason:</p>
+                              <p className="text-sm text-red-200">{submission.rejectionReason}</p>
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
                           <div className="mt-3 flex justify-end space-x-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="bg-green-600/20 hover:bg-green-600 text-green-200 hover:text-white border-green-600/30"
-                              onClick={() => handleApproveSubmission(submission._id)}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs text-blue-300 hover:text-blue-100"
+                              onClick={() => handleViewSubmissionDetails(submission)}
                             >
-                              <Check className="w-4 h-4 mr-1" /> Approve
-                            </Button>                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="bg-red-600/20 hover:bg-red-600 text-red-200 hover:text-white border-red-600/30"
-                              onClick={() => handleRejectWithReason(submission._id)}
-                            >
-                              <X className="w-4 h-4 mr-1" /> Reject
+                              <Eye className="w-3 h-3 mr-1" /> View Details
                             </Button>
+                            {submission.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-green-600/20 hover:bg-green-600 text-green-200 hover:text-white border-green-600/30"
+                                  onClick={() => handleApproveSubmission(submission._id)}
+                                >
+                                  <Check className="w-4 h-4 mr-1" /> Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-red-600/20 hover:bg-red-600 text-red-200 hover:text-white border-red-600/30"
+                                  onClick={() => handleRejectWithReason(submission._id)}
+                                >
+                                  <X className="w-4 h-4 mr-1" /> Reject
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
                       );
                     })}
-                    
-                    {/* Load More button for pending submissions */}
-                    {filteredFormSubmissions.filter(submission => submission.status === 'pending').length > pendingDisplayCount && (
-                      <div className="text-center py-4">
-                        <Button 
-                          variant="outline" 
-                          onClick={() => setPendingDisplayCount(prev => prev + 5)}
-                          className="bg-white/5 hover:bg-white/10 text-white border-white/20"
-                        >
-                          Load More ({filteredFormSubmissions.filter(submission => submission.status === 'pending').length - pendingDisplayCount} remaining)
-                        </Button>
-                      </div>
-                    )}
-                    
-                    {formSubmissions.filter(submission => submission.status === 'pending').length === 0 && (
-                      <div className="text-center py-8 text-gray-400">
-                        <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-500 opacity-30" />
-                        <p className="text-lg">No pending submissions</p>
-                        <p className="text-sm mt-2">All form submissions have been reviewed</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* Processed Submissions */}
-              <Card className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center">
-                    <FileText className="w-5 h-5 mr-2 text-blue-400" /> 
-                    Processed Submissions (Total: {filteredFormSubmissions.filter(submission => submission.status !== 'pending').length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>                  <div className="space-y-4">                    {filteredFormSubmissions.filter(submission => submission.status !== 'pending')
-                      .slice(0, processedDisplayCount) // Show limited processed submissions
-                      .map((submission) => {
-                        // Handle both populated and non-populated eventId
-                        const eventIdStr = typeof submission.eventId === 'object' && submission.eventId ? 
-                          (submission.eventId as any)._id : submission.eventId;
-                        const relatedEvent = events.find(e => e._id === eventIdStr) || 
-                          (typeof submission.eventId === 'object' ? submission.eventId as any : null);
-                        const statusColor = submission.status === 'approved'
-                          ? "bg-green-600/20 border-green-600 text-green-200" 
-                          : "bg-red-600/20 border-red-600 text-red-200";
-                        
-                        return (
-                          <div key={submission._id} className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-lg rounded-lg p-4">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="text-white font-semibold">{submission.studentName}</h4>
-                                <p className="text-sm text-gray-400">
-                                  {relatedEvent?.title || 'Unknown Event'}
-                                </p>
-                                <div className="flex gap-2 mt-1">
-                                  <p className="text-xs text-gray-400">
-                                    Submitted: {new Date(submission.submissionDate).toLocaleDateString()}
-                                  </p>
-                                  {submission.reviewedAt && (
-                                    <p className="text-xs text-gray-400">
-                                      Reviewed: {new Date(submission.reviewedAt).toLocaleDateString()}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="mt-1 flex flex-wrap gap-2">
-                                  {submission.ticketType && (
-                                    <Badge variant="outline" className="bg-purple-500/20 border-purple-500/30 text-purple-200 text-xs">
-                                      {submission.ticketType.name} - ${submission.ticketType.price.toFixed(2)}
-                                    </Badge>
-                                  )}
-                                  {submission.status === 'approved' && (
-                                    <Badge variant="outline" className="bg-green-500/20 border-green-500/30 text-green-200 text-xs">
-                                      💳 Unpaid
-                                    </Badge>
-                                  )}
-                                  {submission.status === 'rejected' && submission.rejectionReason && (
-                                    <Badge variant="outline" className="bg-red-500/20 border-red-500/30 text-red-200 text-xs">
-                                      ❌ {submission.rejectionReason}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <Badge className={statusColor}>
-                                {submission.status}
-                              </Badge>
-                            </div>
-                            
-                            {/* Display uploaded forms for processed submissions */}
-                            {submission.forms && submission.forms.length > 0 && (
-                              <div className="mt-3">
-                                <p className="text-xs font-medium text-white mb-1">Uploaded Forms:</p>
-                                <div className="flex flex-wrap gap-2">
-                                  {submission.forms.map((form, index) => (
-                                    <div key={index} className="flex items-center bg-white/10 px-2 py-1 rounded-full text-xs text-white">
-                                      <FileText className="w-3 h-3 mr-1" />
-                                      <span className="truncate max-w-[100px]">{form.fileName}</span>
-                                      <Button 
-                                        size="sm" 
-                                        variant="ghost" 
-                                        className="h-4 w-4 p-0 ml-1 text-blue-300 hover:text-blue-100"
-                                        onClick={() => window.open(form.fileUrl, '_blank')}
-                                      >
-                                        <Eye className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            
-                            <div className="mt-2 flex items-center gap-2">
-                              <Button 
-                                size="sm" 
-                                variant="ghost"
-                                className="text-xs text-blue-300 hover:text-blue-100 p-1 h-auto"
-                                onClick={() => handleViewSubmissionDetails(submission)}
-                              >
-                                <Eye className="w-3 h-3 mr-1" /> 
-                                View Details
-                              </Button>
-                              
-                            </div>
-                          </div>
-                        );
-                    })}
-                      {filteredFormSubmissions.filter(submission => submission.status !== 'pending').length === 0 && (
+
+                    {/* Empty State */}
+                    {filteredFormSubmissions.length === 0 && (
                       <div className="text-center py-8 text-gray-400">
                         <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500 opacity-30" />
-                        <p>No processed submissions yet</p>
+                        <p className="text-lg">No submissions found</p>
+                        <p className="text-sm mt-2">Try adjusting your filters</p>
                       </div>
                     )}
-                    
-                    {/* Load More button for processed submissions */}
-                    {filteredFormSubmissions.filter(submission => submission.status !== 'pending').length > processedDisplayCount && (
+
+                    {/* Load More button */}
+                    {filteredFormSubmissions.length > submissionDisplayCount && (
                       <div className="text-center py-4">
-                        <Button 
-                          variant="outline" 
-                          onClick={() => setProcessedDisplayCount(prev => prev + 5)}
+                        <Button
+                          variant="outline"
+                          onClick={() => setSubmissionDisplayCount(prev => prev + 10)}
                           className="bg-white/5 hover:bg-white/10 text-white border-white/20"
                         >
-                          Load More ({filteredFormSubmissions.filter(submission => submission.status !== 'pending').length - processedDisplayCount} remaining)
+                          Load More ({filteredFormSubmissions.length - submissionDisplayCount} remaining)
                         </Button>
                       </div>
                     )}
@@ -2414,8 +2394,8 @@ ESHS ASB Team
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {studentGov.slice(0, 4).map((position) => (
+                    <div className="space-y-4 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
+                      {studentGov.map((position) => (
                         <div key={position._id} className="flex justify-between items-center">
                           <div>
                             <h4 className="text-white font-semibold">{position.position}</h4>
@@ -2465,8 +2445,8 @@ ESHS ASB Team
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {clubs.slice(0, 4).map((club) => (
+                    <div className="space-y-4 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
+                      {clubs.map((club) => (
                         <div key={club._id} className="flex justify-between items-center">
                           <div>
                             <h4 className="text-white font-semibold">{club.name}</h4>
@@ -2528,7 +2508,7 @@ ESHS ASB Team
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4 max-h-64 overflow-y-auto">
+                  <div className="space-y-4 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
                     {announcements.map((announcement) => (
                       <div key={announcement._id} className="flex justify-between items-start p-3 bg-white/5 rounded-lg border border-white/10">
                         <div className="flex-1">

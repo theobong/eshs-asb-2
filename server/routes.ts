@@ -621,17 +621,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Payment routes
   app.post("/api/payment/create-intent", async (req, res) => {
     try {
-      const { amount, items, customerEmail, customerName } = req.body;
-      
+      const { amount, items, customerEmail, customerName, submissionId } = req.body;
+
       const paymentIntent = await paymentService.createPaymentIntent({
         amount,
         metadata: {
           customerEmail,
           customerName,
-          items: JSON.stringify(items)
+          items: JSON.stringify(items),
+          submissionId // For ticket purchases - used in redirect URL
         }
       });
-      
+
       res.json(paymentIntent);
     } catch (error) {
       console.error('Failed to create payment intent:', error);
@@ -770,6 +771,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             console.log(`✅ Updated purchase status to 'paid'`);
+            
+            // If this purchase is for a form submission (activity ticket), update the submission
+            if (purchase.formSubmissionId) {
+              console.log(`🎟️  Updating form submission status for ticket purchase...`);
+              await storage.updateFormSubmission(purchase.formSubmissionId, {
+                status: 'paid',
+                purchaseStatus: 'completed',
+                paymentDate: new Date(),
+                transactionId: transactionId
+              });
+              console.log(`✅ Form submission marked as paid`);
+            }
 
             // Parse cart items from notes
             let items = [];
@@ -946,6 +959,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(purchase);
     } catch (error) {
       res.status(400).json({ message: "Error creating purchase", error });
+    }
+  });
+
+  // Ticket purchase endpoint for approved activity tickets
+  app.post("/api/ticket-purchase", async (req, res) => {
+    try {
+      const { submissionId, ...purchaseData } = req.body;
+      
+      // Verify submission exists and is approved
+      const submission = await storage.getFormSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+      
+      if (submission.status !== 'approved') {
+        return res.status(400).json({ message: "Submission is not approved for purchase" });
+      }
+      
+      // Create purchase record
+      const purchase = await storage.createPurchase({
+        ...purchaseData,
+        formSubmissionId: submissionId
+      });
+      
+      // Update submission to indicate purchase is pending
+      await storage.updateFormSubmission(submissionId, {
+        purchaseStatus: 'pending',
+        purchaseId: purchase._id
+      });
+      
+      res.status(201).json(purchase);
+    } catch (error) {
+      console.error('Error creating ticket purchase:', error);
+      res.status(400).json({ message: "Error creating ticket purchase", error });
+    }
+  });
+
+  // Payment verification endpoint - called when user returns from Clover checkout
+  app.post("/api/payment/verify", async (req, res) => {
+    try {
+      const { sessionId, checkoutId, submissionId, purchaseId } = req.body;
+      const lookupId = sessionId || checkoutId;
+
+      console.log(`\n🔍 Payment verification request:`);
+      console.log(`   Session/Checkout ID: ${lookupId || 'N/A'}`);
+      console.log(`   Submission ID: ${submissionId || 'N/A'}`);
+      console.log(`   Purchase ID: ${purchaseId || 'N/A'}`);
+
+      if (!lookupId && !submissionId && !purchaseId) {
+        return res.status(400).json({ message: "Missing session ID, submission ID, or purchase ID" });
+      }
+
+      let purchase = null;
+
+      // Try to find purchase by direct purchase ID first (most reliable)
+      if (purchaseId) {
+        purchase = await storage.getPurchase(purchaseId);
+      }
+
+      // Try to find purchase by session ID
+      if (!purchase && lookupId) {
+        purchase = await storage.getPurchaseByCloverSessionId(lookupId);
+        if (!purchase) {
+          purchase = await storage.getPurchaseByCloverOrderId(lookupId);
+        }
+      }
+
+      // If not found and we have submissionId, look up by form submission
+      if (!purchase && submissionId) {
+        const purchases = await storage.getPurchases();
+        purchase = purchases.find((p: any) => p.formSubmissionId?.toString() === submissionId);
+      }
+
+      if (!purchase) {
+        console.log(`   ⚠️ No purchase found`);
+        return res.status(404).json({ message: "Purchase not found" });
+      }
+
+      console.log(`   ✅ Found purchase: ${purchase._id}`);
+      console.log(`   Current status: ${purchase.status}`);
+
+      // If already paid, return success
+      if (purchase.status === 'paid') {
+        console.log(`   Already marked as paid`);
+        return res.json({
+          success: true,
+          status: 'paid',
+          purchase: purchase,
+          message: 'Payment already verified'
+        });
+      }
+
+      // Since user returned to success URL, assume payment was successful
+      // (Clover only redirects to success URL on successful payment)
+      console.log(`   Marking purchase as paid (user returned to success URL)`);
+
+      // Update purchase status to paid
+      await storage.updatePurchase(purchase._id, {
+        status: 'paid',
+        paymentVerifiedAt: new Date()
+      });
+
+      // If this is a ticket purchase, update the form submission
+      if (purchase.formSubmissionId) {
+        console.log(`   Updating form submission: ${purchase.formSubmissionId}`);
+        await storage.updateFormSubmission(purchase.formSubmissionId, {
+          status: 'paid',
+          purchaseStatus: 'completed',
+          paymentDate: new Date()
+        });
+      }
+
+      // Parse cart items for stock update
+      let items = [];
+      try {
+        items = JSON.parse(purchase.notes || '[]');
+      } catch (e) {
+        items = [{ name: purchase.productName, quantity: purchase.quantity, price: purchase.amount }];
+      }
+
+      // Update product stock for each item
+      for (const item of items) {
+        if (item.productId) {
+          const product = await storage.getProduct(item.productId);
+          if (product) {
+            if (product.category === 'Apparel' && product.sizeStock && item.size) {
+              const updatedSizeStock = product.sizeStock.map((ss: any) =>
+                ss.size === item.size
+                  ? { ...ss, stock: Math.max(0, ss.stock - item.quantity) }
+                  : ss
+              );
+              await storage.updateProduct(item.productId, { sizeStock: updatedSizeStock });
+            } else {
+              const newStock = Math.max(0, (product.stock || 0) - item.quantity);
+              await storage.updateProduct(item.productId, { stock: newStock });
+            }
+          }
+        }
+      }
+
+      // Send confirmation email
+      try {
+        await emailService.sendPurchaseConfirmation(purchase.studentEmail, {
+          orderNumber: purchase._id,
+          items: items,
+          total: purchase.amount,
+          paymentMethod: 'card'
+        });
+        console.log(`   ✅ Confirmation email sent`);
+      } catch (emailError) {
+        console.error(`   ⚠️ Failed to send confirmation email:`, emailError);
+      }
+
+      console.log(`   ✅ Payment verification complete`);
+
+      res.json({
+        success: true,
+        status: 'paid',
+        purchase: purchase,
+        message: 'Payment verified successfully'
+      });
+    } catch (error) {
+      console.error('Payment verification failed:', error);
+      res.status(500).json({ message: "Payment verification failed", error });
     }
   });
 

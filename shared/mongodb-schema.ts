@@ -176,6 +176,7 @@ const purchaseSchema = new mongoose.Schema({
   transactionId: { type: String },
   cloverOrderId: { type: String },
   cloverSessionId: { type: String },
+  formSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: 'FormSubmission' }, // For ticket purchases
   paymentDetails: {
     last4: { type: String },
     brand: { type: String },

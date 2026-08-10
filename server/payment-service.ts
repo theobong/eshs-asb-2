@@ -80,12 +80,13 @@ class PaymentService {
   }
 
   async createPaymentIntent(request: PaymentIntentRequest): Promise<any> {
-    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    
+    // Remove trailing slash from CLIENT_URL if present
+    const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+
     try {
       // Generate unique order ID for tracking
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-      
+
       // Parse customer name
       const fullName = request.metadata?.customerName || '';
       const nameParts = fullName.split(' ');
@@ -94,7 +95,16 @@ class PaymentService {
 
       // Parse items from metadata
       const items = JSON.parse(request.metadata?.items || '[]');
-      
+
+      // Determine the return URL type (cart checkout or ticket checkout)
+      const isTicketCheckout = request.metadata?.submissionId ? true : false;
+      const successUrl = isTicketCheckout
+        ? `${clientUrl}/checkout/success?type=ticket&submissionId=${request.metadata?.submissionId}`
+        : `${clientUrl}/shop/checkout/success`;
+      const failureUrl = isTicketCheckout
+        ? `${clientUrl}/checkout/${request.metadata?.submissionId}?error=payment_failed`
+        : `${clientUrl}/shop/checkout?error=payment_failed`;
+
       // Create checkout session payload according to Clover API
       const checkoutPayload = {
         customer: {
@@ -109,6 +119,10 @@ class PaymentService {
             unitQty: item.quantity || 1,
             note: `Item: ${item.name}`
           }))
+        },
+        redirectUrls: {
+          success: successUrl,
+          failure: failureUrl
         }
       };
 

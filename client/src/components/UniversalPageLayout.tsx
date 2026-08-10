@@ -7,6 +7,7 @@ import { BlurPageHeader } from "@/components/UniversalBlurComponents";
 export const UniversalPageLayout: React.FC<{
   pageType?: 'default' | 'theater' | 'shop' | 'activities' | 'information';
   title: string;
+  showHeader?: boolean;
   showBackButton?: boolean;
   backButtonText?: string;
   onBackClick?: () => void;
@@ -14,10 +15,11 @@ export const UniversalPageLayout: React.FC<{
   rightElement?: (props: { contentVisible: boolean }) => React.ReactNode;
   children: (props: { contentVisible: boolean, blurReady: boolean }) => React.ReactNode;
   className?: string;
-}> = ({ 
-  pageType = 'information', 
-  title, 
-  showBackButton = true, 
+}> = ({
+  pageType = 'information',
+  title,
+  showHeader = true,
+  showBackButton = true,
   backButtonText,
   onBackClick,
   loadingText = "Loading glassmorphism effects...",
@@ -43,14 +45,16 @@ export const UniversalPageLayout: React.FC<{
       <div className="relative z-10 min-h-screen">
         <div className={`container mx-auto px-4 py-8 ${className || ''}`}>
           {/* Universal Page Header */}
-          <BlurPageHeader 
-            contentVisible={contentVisible}
-            title={title}
-            showBackButton={showBackButton}
-            backButtonText={backButtonText}
-            onBackClick={onBackClick}
-            rightElement={rightElement ? rightElement({ contentVisible }) : undefined}
-          />
+          {showHeader && (
+            <BlurPageHeader
+              contentVisible={contentVisible}
+              title={title}
+              showBackButton={showBackButton}
+              backButtonText={backButtonText}
+              onBackClick={onBackClick}
+              rightElement={rightElement ? rightElement({ contentVisible }) : undefined}
+            />
+          )}
 
           {/* Page-specific content */}
           {children({ contentVisible, blurReady })}

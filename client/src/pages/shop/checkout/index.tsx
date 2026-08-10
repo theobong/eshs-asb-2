@@ -88,7 +88,14 @@ export default function CheckoutPage() {
       };
 
       const purchase = await createPurchase(purchaseData);
-      
+
+      // Store purchase info for verification on return from Clover
+      sessionStorage.setItem('pending-cart-purchase', JSON.stringify({
+        purchaseId: purchase._id,
+        cloverSessionId: intent.sessionId,
+        timestamp: Date.now()
+      }));
+
       setPaymentIntent(intent);
       setShowPayment(true);
       setIsSubmitting(false);
@@ -106,7 +113,7 @@ export default function CheckoutPage() {
     // Store current form data in session storage so we can clear cart on return
     sessionStorage.setItem('checkout-form-data', JSON.stringify(formState));
     sessionStorage.setItem('checkout-cart-items', JSON.stringify(cartItems));
-    
+
     // Redirect to Clover checkout
     window.location.href = checkoutUrl;
   };
