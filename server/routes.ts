@@ -61,6 +61,9 @@ const handleError = (res: express.Response, error: unknown) => {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+const clientBaseUrl = (): string =>
+  (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+
 const populatedEventTitle = (eventRef: unknown): string | undefined => {
   if (eventRef && typeof eventRef === 'object' && 'title' in eventRef) {
     const { title } = eventRef as { title?: unknown };
@@ -742,7 +745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await emailService.sendApprovalNotification(submission.email, {
               eventName,
               studentName: submission.studentName,
-              ticketPurchaseUrl: `https://eshsasb.org/checkout/${submission._id}`,
+              ticketPurchaseUrl: `${clientBaseUrl()}/checkout/${submission._id}`,
               quantity: submission.quantity || 1,
               totalAmount: submission.totalAmount || 0,
               ticketType: submission.ticketType
@@ -753,7 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               eventName,
               studentName: submission.studentName,
               reason: reason,
-              retryUrl: `https://eshsasb.org/activities/details/${eventIdString(submission.eventId) || ''}`
+              retryUrl: `${clientBaseUrl()}/activities/details/${eventIdString(submission.eventId) || ''}`
             });
           }
         } catch (emailError) {
@@ -1252,7 +1255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await emailService.sendApprovalNotification(to, {
           eventName,
           studentName,
-          ticketPurchaseUrl: 'https://eshsasb.org/checkout/debug-test',
+          ticketPurchaseUrl: `${clientBaseUrl()}/checkout/debug-test`,
           quantity: 1,
           totalAmount: 25.00,
           ticketType: {
@@ -1266,7 +1269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eventName,
           studentName,
           reason: 'This is a debug test rejection.',
-          retryUrl: 'https://eshsasb.org/activities/details/debug-test'
+          retryUrl: `${clientBaseUrl()}/activities/details/debug-test`
         });
       } else {
         return res.status(400).json({ message: "Status must be 'approved' or 'rejected'" });
@@ -1295,7 +1298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await emailService.sendApprovalNotification(to, {
             eventName: 'Test Event - Winter Formal',
             studentName: 'Test Student',
-            ticketPurchaseUrl: 'https://eshsasb.org/checkout/test-submission-id-123',
+            ticketPurchaseUrl: `${clientBaseUrl()}/checkout/test-submission-id-123`,
             quantity: 2,
             totalAmount: 50.00,
             ticketType: {
@@ -1310,7 +1313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eventName: 'Test Event - Winter Formal',
             studentName: 'Test Student',
             reason: 'Missing required parent signature on permission form. Please ensure all forms are completely filled out and signed before resubmitting.',
-            retryUrl: 'https://eshsasb.org/activities/details/test-event-id'
+            retryUrl: `${clientBaseUrl()}/activities/details/test-event-id`
           });
           break;
         case 'submission':
