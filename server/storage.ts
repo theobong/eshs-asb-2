@@ -1,3 +1,4 @@
+import type { HydratedDocument } from "mongoose";
 import {
   User,
   Product,
@@ -20,107 +21,104 @@ import {
   connectDB
 } from "@shared/mongodb-schema";
 
-// MongoDB Storage Interface
+export type UserDoc = HydratedDocument<UserType>;
+export type ProductDoc = HydratedDocument<ProductType>;
+export type EventDoc = HydratedDocument<EventType>;
+export type VideoPostDoc = HydratedDocument<VideoPostType>;
+export type AnnouncementDoc = HydratedDocument<AnnouncementType>;
+export type StudentGovPositionDoc = HydratedDocument<StudentGovPositionType>;
+export type ClubDoc = HydratedDocument<ClubType>;
+export type FormSubmissionDoc = HydratedDocument<FormSubmissionType>;
+export type PurchaseDoc = HydratedDocument<PurchaseType>;
+
 export interface IStorage {
-  // User methods
-  getUser(id: string): Promise<UserType | null>;
-  getUserByUsername(username: string): Promise<UserType | null>;
-  createUser(user: Partial<UserType>): Promise<UserType>;
-  
-  // Product methods
-  getProducts(): Promise<ProductType[]>;
-  getProduct(id: string): Promise<ProductType | null>;
-  createProduct(product: Partial<ProductType>): Promise<ProductType>;
-  updateProduct(id: string, product: Partial<ProductType>): Promise<ProductType | null>;
+  getUser(id: string): Promise<UserDoc | null>;
+  getUserByUsername(username: string): Promise<UserDoc | null>;
+  createUser(user: Partial<UserType>): Promise<UserDoc>;
+
+  getProducts(): Promise<ProductDoc[]>;
+  getProduct(id: string): Promise<ProductDoc | null>;
+  createProduct(product: Partial<ProductType>): Promise<ProductDoc>;
+  updateProduct(id: string, product: Partial<ProductType>): Promise<ProductDoc | null>;
   deleteProduct(id: string): Promise<boolean>;
-  
-  // Event methods
-  getEvents(): Promise<EventType[]>;
-  getEvent(id: string): Promise<EventType | null>;
-  createEvent(event: Partial<EventType>): Promise<EventType>;
-  updateEvent(id: string, event: Partial<EventType>): Promise<EventType | null>;
+
+  getEvents(): Promise<EventDoc[]>;
+  getEvent(id: string): Promise<EventDoc | null>;
+  createEvent(event: Partial<EventType>): Promise<EventDoc>;
+  updateEvent(id: string, event: Partial<EventType>): Promise<EventDoc | null>;
   deleteEvent(id: string): Promise<boolean>;
-  
-  // Video methods
-  getVideos(): Promise<VideoPostType[]>;
-  getVideo(id: string): Promise<VideoPostType | null>;
-  createVideo(video: Partial<VideoPostType>): Promise<VideoPostType>;
-  updateVideo(id: string, video: Partial<VideoPostType>): Promise<VideoPostType | null>;
+
+  getVideos(): Promise<VideoPostDoc[]>;
+  getVideo(id: string): Promise<VideoPostDoc | null>;
+  createVideo(video: Partial<VideoPostType>): Promise<VideoPostDoc>;
+  updateVideo(id: string, video: Partial<VideoPostType>): Promise<VideoPostDoc | null>;
   deleteVideo(id: string): Promise<boolean>;
-  
-  // Announcement methods
-  getAnnouncements(): Promise<AnnouncementType[]>;
-  getAnnouncement(id: string): Promise<AnnouncementType | null>;
-  createAnnouncement(announcement: Partial<AnnouncementType>): Promise<AnnouncementType>;
-  updateAnnouncement(id: string, announcement: Partial<AnnouncementType>): Promise<AnnouncementType | null>;
+
+  getAnnouncements(): Promise<AnnouncementDoc[]>;
+  getAnnouncement(id: string): Promise<AnnouncementDoc | null>;
+  createAnnouncement(announcement: Partial<AnnouncementType>): Promise<AnnouncementDoc>;
+  updateAnnouncement(id: string, announcement: Partial<AnnouncementType>): Promise<AnnouncementDoc | null>;
   deleteAnnouncement(id: string): Promise<boolean>;
-  
-  // Student Government methods
-  getStudentGovPositions(): Promise<StudentGovPositionType[]>;
-  getStudentGovPosition(id: string): Promise<StudentGovPositionType | null>;
-  createStudentGovPosition(position: Partial<StudentGovPositionType>): Promise<StudentGovPositionType>;
-  updateStudentGovPosition(id: string, position: Partial<StudentGovPositionType>): Promise<StudentGovPositionType | null>;
+
+  getStudentGovPositions(): Promise<StudentGovPositionDoc[]>;
+  getStudentGovPosition(id: string): Promise<StudentGovPositionDoc | null>;
+  createStudentGovPosition(position: Partial<StudentGovPositionType>): Promise<StudentGovPositionDoc>;
+  updateStudentGovPosition(id: string, position: Partial<StudentGovPositionType>): Promise<StudentGovPositionDoc | null>;
   deleteStudentGovPosition(id: string): Promise<boolean>;
-  
-  // Club methods
-  getClubs(): Promise<ClubType[]>;
-  getClub(id: string): Promise<ClubType | null>;
-  createClub(club: Partial<ClubType>): Promise<ClubType>;
-  updateClub(id: string, club: Partial<ClubType>): Promise<ClubType | null>;
+
+  getClubs(): Promise<ClubDoc[]>;
+  getClub(id: string): Promise<ClubDoc | null>;
+  createClub(club: Partial<ClubType>): Promise<ClubDoc>;
+  updateClub(id: string, club: Partial<ClubType>): Promise<ClubDoc | null>;
   deleteClub(id: string): Promise<boolean>;
-  
-  
-  // Form Submission methods
-  getFormSubmissions(): Promise<FormSubmissionType[]>;
-  getFormSubmission(id: string): Promise<FormSubmissionType | null>;
-  createFormSubmission(submission: Partial<FormSubmissionType>): Promise<FormSubmissionType>;
-  updateFormSubmission(id: string, submission: Partial<FormSubmissionType>): Promise<FormSubmissionType | null>;
+
+  getFormSubmissions(): Promise<FormSubmissionDoc[]>;
+  getFormSubmission(id: string): Promise<FormSubmissionDoc | null>;
+  createFormSubmission(submission: Partial<FormSubmissionType>): Promise<FormSubmissionDoc>;
+  updateFormSubmission(id: string, submission: Partial<FormSubmissionType>): Promise<FormSubmissionDoc | null>;
   deleteFormSubmission(id: string): Promise<boolean>;
-  
-  // Purchase methods
-  getPurchases(): Promise<PurchaseType[]>;
-  getPurchase(id: string): Promise<PurchaseType | null>;
-  getPurchaseByCloverOrderId(cloverOrderId: string): Promise<PurchaseType | null>;
-  createPurchase(purchase: Partial<PurchaseType>): Promise<PurchaseType>;
-  updatePurchase(id: string, purchase: Partial<PurchaseType>): Promise<PurchaseType | null>;
+
+  getPurchases(): Promise<PurchaseDoc[]>;
+  getPurchase(id: string): Promise<PurchaseDoc | null>;
+  getPurchaseByCloverOrderId(cloverOrderId: string): Promise<PurchaseDoc | null>;
+  getPurchaseByCloverSessionId(cloverSessionId: string): Promise<PurchaseDoc | null>;
+  createPurchase(purchase: Partial<PurchaseType>): Promise<PurchaseDoc>;
+  updatePurchase(id: string, purchase: Partial<PurchaseType>): Promise<PurchaseDoc | null>;
   deletePurchase(id: string): Promise<boolean>;
 }
 
 export class MongoStorage implements IStorage {
   constructor() {
-    // Connect to MongoDB when storage is initialized
     connectDB();
   }
 
-  // User methods
-  async getUser(id: string): Promise<UserType | null> {
+  async getUser(id: string): Promise<UserDoc | null> {
     return await User.findById(id);
   }
 
-  async getUserByUsername(username: string): Promise<UserType | null> {
+  async getUserByUsername(username: string): Promise<UserDoc | null> {
     return await User.findOne({ username });
   }
 
-  async createUser(user: Partial<UserType>): Promise<UserType> {
+  async createUser(user: Partial<UserType>): Promise<UserDoc> {
     const newUser = new User(user);
     return await newUser.save();
   }
 
-  // Product methods
-  async getProducts(): Promise<ProductType[]> {
+  async getProducts(): Promise<ProductDoc[]> {
     return await Product.find();
   }
 
-  async getProduct(id: string): Promise<ProductType | null> {
+  async getProduct(id: string): Promise<ProductDoc | null> {
     return await Product.findById(id);
   }
 
-  async createProduct(product: Partial<ProductType>): Promise<ProductType> {
+  async createProduct(product: Partial<ProductType>): Promise<ProductDoc> {
     const newProduct = new Product(product);
     return await newProduct.save();
   }
 
-  async updateProduct(id: string, product: Partial<ProductType>): Promise<ProductType | null> {
+  async updateProduct(id: string, product: Partial<ProductType>): Promise<ProductDoc | null> {
     return await Product.findByIdAndUpdate(id, product, { new: true });
   }
 
@@ -129,21 +127,20 @@ export class MongoStorage implements IStorage {
     return result !== null;
   }
 
-  // Event methods
-  async getEvents(): Promise<EventType[]> {
+  async getEvents(): Promise<EventDoc[]> {
     return await Event.find();
   }
 
-  async getEvent(id: string): Promise<EventType | null> {
+  async getEvent(id: string): Promise<EventDoc | null> {
     return await Event.findById(id);
   }
 
-  async createEvent(event: Partial<EventType>): Promise<EventType> {
+  async createEvent(event: Partial<EventType>): Promise<EventDoc> {
     const newEvent = new Event(event);
     return await newEvent.save();
   }
 
-  async updateEvent(id: string, event: Partial<EventType>): Promise<EventType | null> {
+  async updateEvent(id: string, event: Partial<EventType>): Promise<EventDoc | null> {
     return await Event.findByIdAndUpdate(id, event, { new: true });
   }
 
@@ -152,21 +149,20 @@ export class MongoStorage implements IStorage {
     return result !== null;
   }
 
-  // Video methods
-  async getVideos(): Promise<VideoPostType[]> {
+  async getVideos(): Promise<VideoPostDoc[]> {
     return await VideoPost.find();
   }
 
-  async getVideo(id: string): Promise<VideoPostType | null> {
+  async getVideo(id: string): Promise<VideoPostDoc | null> {
     return await VideoPost.findById(id);
   }
 
-  async createVideo(video: Partial<VideoPostType>): Promise<VideoPostType> {
+  async createVideo(video: Partial<VideoPostType>): Promise<VideoPostDoc> {
     const newVideo = new VideoPost(video);
     return await newVideo.save();
   }
 
-  async updateVideo(id: string, video: Partial<VideoPostType>): Promise<VideoPostType | null> {
+  async updateVideo(id: string, video: Partial<VideoPostType>): Promise<VideoPostDoc | null> {
     return await VideoPost.findByIdAndUpdate(id, video, { new: true });
   }
 
@@ -175,21 +171,20 @@ export class MongoStorage implements IStorage {
     return result !== null;
   }
 
-  // Announcement methods
-  async getAnnouncements(): Promise<AnnouncementType[]> {
+  async getAnnouncements(): Promise<AnnouncementDoc[]> {
     return await Announcement.find().sort({ date: -1 });
   }
 
-  async getAnnouncement(id: string): Promise<AnnouncementType | null> {
+  async getAnnouncement(id: string): Promise<AnnouncementDoc | null> {
     return await Announcement.findById(id);
   }
 
-  async createAnnouncement(announcement: Partial<AnnouncementType>): Promise<AnnouncementType> {
+  async createAnnouncement(announcement: Partial<AnnouncementType>): Promise<AnnouncementDoc> {
     const newAnnouncement = new Announcement(announcement);
     return await newAnnouncement.save();
   }
 
-  async updateAnnouncement(id: string, announcement: Partial<AnnouncementType>): Promise<AnnouncementType | null> {
+  async updateAnnouncement(id: string, announcement: Partial<AnnouncementType>): Promise<AnnouncementDoc | null> {
     return await Announcement.findByIdAndUpdate(id, announcement, { new: true });
   }
 
@@ -198,21 +193,20 @@ export class MongoStorage implements IStorage {
     return result !== null;
   }
 
-  // Student Government methods
-  async getStudentGovPositions(): Promise<StudentGovPositionType[]> {
+  async getStudentGovPositions(): Promise<StudentGovPositionDoc[]> {
     return await StudentGovPosition.find();
   }
 
-  async getStudentGovPosition(id: string): Promise<StudentGovPositionType | null> {
+  async getStudentGovPosition(id: string): Promise<StudentGovPositionDoc | null> {
     return await StudentGovPosition.findById(id);
   }
 
-  async createStudentGovPosition(position: Partial<StudentGovPositionType>): Promise<StudentGovPositionType> {
+  async createStudentGovPosition(position: Partial<StudentGovPositionType>): Promise<StudentGovPositionDoc> {
     const newPosition = new StudentGovPosition(position);
     return await newPosition.save();
   }
 
-  async updateStudentGovPosition(id: string, position: Partial<StudentGovPositionType>): Promise<StudentGovPositionType | null> {
+  async updateStudentGovPosition(id: string, position: Partial<StudentGovPositionType>): Promise<StudentGovPositionDoc | null> {
     return await StudentGovPosition.findByIdAndUpdate(id, position, { new: true });
   }
 
@@ -221,21 +215,20 @@ export class MongoStorage implements IStorage {
     return result !== null;
   }
 
-  // Club methods
-  async getClubs(): Promise<ClubType[]> {
+  async getClubs(): Promise<ClubDoc[]> {
     return await Club.find({ isActive: true });
   }
 
-  async getClub(id: string): Promise<ClubType | null> {
+  async getClub(id: string): Promise<ClubDoc | null> {
     return await Club.findById(id);
   }
 
-  async createClub(club: Partial<ClubType>): Promise<ClubType> {
+  async createClub(club: Partial<ClubType>): Promise<ClubDoc> {
     const newClub = new Club(club);
     return await newClub.save();
   }
 
-  async updateClub(id: string, club: Partial<ClubType>): Promise<ClubType | null> {
+  async updateClub(id: string, club: Partial<ClubType>): Promise<ClubDoc | null> {
     return await Club.findByIdAndUpdate(id, club, { new: true });
   }
 
@@ -244,22 +237,20 @@ export class MongoStorage implements IStorage {
     return result !== null;
   }
 
-
-  // Form Submission methods
-  async getFormSubmissions(): Promise<FormSubmissionType[]> {
+  async getFormSubmissions(): Promise<FormSubmissionDoc[]> {
     return await FormSubmission.find().populate('eventId');
   }
 
-  async getFormSubmission(id: string): Promise<FormSubmissionType | null> {
+  async getFormSubmission(id: string): Promise<FormSubmissionDoc | null> {
     return await FormSubmission.findById(id).populate('eventId');
   }
 
-  async createFormSubmission(submission: Partial<FormSubmissionType>): Promise<FormSubmissionType> {
+  async createFormSubmission(submission: Partial<FormSubmissionType>): Promise<FormSubmissionDoc> {
     const newSubmission = new FormSubmission(submission);
     return await newSubmission.save();
   }
 
-  async updateFormSubmission(id: string, submission: Partial<FormSubmissionType>): Promise<FormSubmissionType | null> {
+  async updateFormSubmission(id: string, submission: Partial<FormSubmissionType>): Promise<FormSubmissionDoc | null> {
     return await FormSubmission.findByIdAndUpdate(id, submission, { new: true }).populate('eventId');
   }
 
@@ -268,29 +259,28 @@ export class MongoStorage implements IStorage {
     return result !== null;
   }
 
-  // Purchase methods
-  async getPurchases(): Promise<PurchaseType[]> {
+  async getPurchases(): Promise<PurchaseDoc[]> {
     return await Purchase.find().populate('productId');
   }
 
-  async getPurchase(id: string): Promise<PurchaseType | null> {
+  async getPurchase(id: string): Promise<PurchaseDoc | null> {
     return await Purchase.findById(id).populate('productId');
   }
 
-  async getPurchaseByCloverOrderId(cloverOrderId: string): Promise<PurchaseType | null> {
+  async getPurchaseByCloverOrderId(cloverOrderId: string): Promise<PurchaseDoc | null> {
     return await Purchase.findOne({ cloverOrderId }).populate('productId');
   }
 
-  async getPurchaseByCloverSessionId(cloverSessionId: string): Promise<PurchaseType | null> {
+  async getPurchaseByCloverSessionId(cloverSessionId: string): Promise<PurchaseDoc | null> {
     return await Purchase.findOne({ cloverSessionId }).populate('productId');
   }
 
-  async createPurchase(purchase: Partial<PurchaseType>): Promise<PurchaseType> {
+  async createPurchase(purchase: Partial<PurchaseType>): Promise<PurchaseDoc> {
     const newPurchase = new Purchase(purchase);
     return await newPurchase.save();
   }
 
-  async updatePurchase(id: string, purchase: Partial<PurchaseType>): Promise<PurchaseType | null> {
+  async updatePurchase(id: string, purchase: Partial<PurchaseType>): Promise<PurchaseDoc | null> {
     return await Purchase.findByIdAndUpdate(id, purchase, { new: true }).populate('productId');
   }
 

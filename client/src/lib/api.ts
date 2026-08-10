@@ -1,12 +1,10 @@
-// API utility functions for the frontend
 const API_BASE_URL = '/api';
 
-// Generic fetch function with error handling
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
-      credentials: 'include', // Include cookies for session authentication
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
@@ -20,16 +18,14 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
         const errorJson = JSON.parse(errorText);
         errorMessage = errorJson.error || errorJson.message || errorMessage;
       } catch {
-        // If not JSON, use the text
         if (errorText) errorMessage = errorText;
       }
       throw new Error(errorMessage);
     }
 
-    // Handle empty responses (like DELETE)
     const text = await response.text();
     if (!text) return undefined as unknown as T;
-    
+
     return JSON.parse(text);
   } catch (error) {
     console.error(`API call failed for ${endpoint}:`, error);
@@ -37,7 +33,6 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
   }
 }
 
-// Product API functions
 export async function getProducts() {
   return fetchAPI<Product[]>('/products');
 }
@@ -66,7 +61,6 @@ export async function deleteProduct(id: string) {
   });
 }
 
-// Event API functions
 export async function getEvents() {
   return fetchAPI<Event[]>('/events');
 }
@@ -95,7 +89,6 @@ export async function deleteEvent(id: string) {
   });
 }
 
-// Video API functions
 export async function getVideos() {
   return fetchAPI<VideoPost[]>('/videos');
 }
@@ -124,7 +117,6 @@ export async function deleteVideo(id: string) {
   });
 }
 
-// Announcement API functions
 export async function getAnnouncements() {
   return fetchAPI<Announcement[]>('/announcements');
 }
@@ -153,7 +145,6 @@ export async function deleteAnnouncement(id: string) {
   });
 }
 
-// Student Government API functions
 export async function getStudentGovPositions() {
   return fetchAPI<StudentGovPosition[]>('/student-gov-positions');
 }
@@ -182,7 +173,6 @@ export async function deleteStudentGovPosition(id: string) {
   });
 }
 
-// Club API functions
 export async function getClubs() {
   return fetchAPI<Club[]>('/clubs');
 }
@@ -211,8 +201,6 @@ export async function deleteClub(id: string) {
   });
 }
 
-
-// Form Submission API functions
 export async function getFormSubmissions() {
   return fetchAPI<FormSubmission[]>('/form-submissions');
 }
@@ -241,15 +229,27 @@ export async function deleteFormSubmission(id: string) {
   });
 }
 
-// Payment API functions
-export async function createPaymentIntent(data: {
+export interface PaymentIntentResponse {
+  purchaseId: string;
+  orderId?: string;
+  sessionId?: string;
+  checkoutUrl: string;
+  subtotal: number;
+  tax: number;
   amount: number;
-  items: any[];
+  items: Array<{ productId?: string; name: string; quantity: number; price: number; size?: string }>;
+}
+
+export async function createPaymentIntent(data: {
+  items?: Array<{ productId: string; quantity: number; size?: string }>;
   customerEmail: string;
   customerName: string;
-  submissionId?: string; // For ticket purchases
+  phone?: string;
+  submissionId?: string;
+  deliveryMethod?: 'pickup' | 'delivery';
+  deliveryDetails?: { roomTeacher?: string };
 }) {
-  return fetchAPI<any>('/payment/create-intent', {
+  return fetchAPI<PaymentIntentResponse>('/payment/create-intent', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -270,7 +270,6 @@ export async function getPaymentStatus(orderId: string) {
   return fetchAPI<any>(`/payment/status/${orderId}`);
 }
 
-// Purchase API functions
 export async function getPurchases() {
   return fetchAPI<Purchase[]>('/purchases');
 }
@@ -299,22 +298,19 @@ export async function deletePurchase(id: string) {
   });
 }
 
-// Type definitions that match our MongoDB schema
 export interface Product {
   _id: string;
   name: string;
   price: number;
   category: 'Apparel' | 'Accessories';
   organization: string;
-  // For Apparel: sizes with individual stock amounts
   sizeStock: Array<{
     size: string;
     stock: number;
   }>;
-  // For Accessories: generic stock
   stock: number;
   image: string;
-  images: string[]; // Array of image URLs for multiple images
+  images: string[];
   description: string;
   createdAt: Date;
 }
@@ -399,6 +395,9 @@ export interface Club {
   createdAt: Date;
 }
 
+export type FormSubmissionStatus = 'pending' | 'approved' | 'rejected' | 'paid';
+
+export type PurchaseStatus = 'pending' | 'paid' | 'completed' | 'cancelled' | 'refunded';
 
 export interface FormSubmission {
   _id: string;
@@ -406,7 +405,7 @@ export interface FormSubmission {
   studentName: string;
   email: string;
   submissionDate: Date;
-  status: 'pending' | 'approved' | 'rejected';
+  status: FormSubmissionStatus;
   forms: {
     fileName: string;
     fileUrl: string;
@@ -417,6 +416,10 @@ export interface FormSubmission {
   notes?: string;
   reviewedBy?: string;
   reviewedAt?: Date;
+  rejectionReason?: string;
+  purchaseStatus?: 'pending' | 'completed';
+  paymentDate?: Date;
+  transactionId?: string;
   ticketType?: {
     name: string;
     price: number;
@@ -435,12 +438,15 @@ export interface Purchase {
   size?: string;
   color?: string;
   amount: number;
-  status: 'pending' | 'paid' | 'completed' | 'cancelled' | 'refunded';
+  status: PurchaseStatus;
   date: Date;
   paymentMethod: string;
   transactionId?: string;
   cloverOrderId?: string;
   cloverSessionId?: string;
+  paymentVerifiedAt?: Date;
+  verificationMethod?: 'clover-webhook' | 'clover-api' | 'redirect-unverified';
+  formSubmissionId?: string;
   paymentDetails?: {
     last4?: string;
     brand?: string;
@@ -449,6 +455,8 @@ export interface Purchase {
   deliveryMethod?: 'pickup' | 'delivery';
   deliveryDetails?: {
     roomTeacher?: string;
+    deliveredAt?: Date;
+    pickedUpAt?: Date;
   };
   notes?: string;
   fulfilledBy?: string;

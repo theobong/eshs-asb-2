@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Upload, X, File, Image } from 'lucide-react';
 
 interface FileUploadProps {
-  value?: string; // URL or file ID
+  value?: string;
   onChange: (url: string) => void;
   accept?: string;
   label: string;
@@ -35,9 +35,9 @@ export function FileUpload({
   const [uploading, setUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const [error, setError] = useState<string>('');
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Determine accept attribute based on fileType
   const getAcceptAttribute = () => {
     if (accept) return accept;
     switch (fileType) {
@@ -50,19 +50,14 @@ export function FileUpload({
     }
   };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const validateAndUpload = async (file: File) => {
     setError('');
 
-    // Validate file size
     if (file.size > maxSizeMB * 1024 * 1024) {
       setError(`File size must be less than ${maxSizeMB}MB`);
       return;
     }
 
-    // Validate file type
     const allowedTypes = getAcceptAttribute().split(',').map(t => t.trim());
     const isValidType = allowedTypes.some(type => {
       if (type === 'image/*') return file.type.startsWith('image/');
@@ -76,6 +71,44 @@ export function FileUpload({
     }
 
     await uploadFile(file);
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await validateAndUpload(file);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!uploading) setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    if (uploading) return;
+
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    await validateAndUpload(file);
+  };
+
+  const readErrorMessage = async (response: Response) => {
+    const fallback = `Upload failed (${response.status})`;
+    const body = await response.text().catch(() => '');
+    if (!body) return fallback;
+    try {
+      const parsed = JSON.parse(body);
+      return parsed?.message || parsed?.error || fallback;
+    } catch {
+      return fallback;
+    }
   };
 
   const uploadFile = async (file: File) => {
@@ -93,14 +126,14 @@ export function FileUpload({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Upload failed');
+        throw new Error(await readErrorMessage(response));
       }
 
-      const uploadedFile: UploadedFile = await response.json();
-      setUploadedFile(uploadedFile);
-      onChange(uploadedFile.url);
+      const result: UploadedFile = await response.json();
+      setUploadedFile(result);
+      onChange(result.url);
     } catch (err) {
+      console.error('File upload failed:', err);
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
@@ -130,9 +163,13 @@ export function FileUpload({
   return (
     <div className="space-y-3">
       <label className="block text-sm font-medium text-white mb-2">{label}</label>
-      
-      {/* File Upload Section */}
-      <div className="border-2 border-dashed border-white/20 rounded-lg p-4 hover:border-white/40 transition-colors">
+
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-lg p-4 transition-colors ${isDragging ? 'border-white/40' : 'border-white/20 hover:border-white/40'}`}
+      >
         <input
           ref={fileInputRef}
           type="file"
@@ -141,7 +178,7 @@ export function FileUpload({
           className="hidden"
           disabled={uploading}
         />
-        
+
         {!uploadedFile && !value ? (
           <div className="text-center">
             <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
@@ -163,11 +200,11 @@ export function FileUpload({
             </div>
           </div>
         ) : uploadedFile ? (
-          <div className="flex items-center justify-between bg-white/10 rounded-lg p-3">
-            <div className="flex items-center space-x-3">
-              {getFileIcon()}
-              <div>
-                <p className="text-sm font-medium text-white">{uploadedFile.originalName}</p>
+          <div className="flex items-center justify-between gap-2 bg-white/10 rounded-lg p-3">
+            <div className="flex items-center space-x-3 min-w-0">
+              <span className="shrink-0">{getFileIcon()}</span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-white break-all">{uploadedFile.originalName}</p>
                 <p className="text-xs text-gray-400">
                   {(uploadedFile.size / 1024).toFixed(1)} KB • Uploaded
                 </p>
@@ -178,16 +215,17 @@ export function FileUpload({
               variant="ghost"
               size="sm"
               onClick={handleRemove}
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/20 h-8 w-8 p-0"
+              aria-label="Remove uploaded file"
+              className="text-red-400 hover:text-red-300 hover:bg-red-500/20 h-11 w-11 sm:h-9 sm:w-9 p-0 shrink-0"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
         ) : value ? (
-          <div className="flex items-center justify-between bg-white/10 rounded-lg p-3">
-            <div className="flex items-center space-x-3">
-              <File className="h-4 w-4" />
-              <div>
+          <div className="flex items-center justify-between gap-2 bg-white/10 rounded-lg p-3">
+            <div className="flex items-center space-x-3 min-w-0">
+              <File className="h-4 w-4 shrink-0" />
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-white">External URL</p>
                 <p className="text-xs text-gray-400 break-all">{value}</p>
               </div>
@@ -197,7 +235,8 @@ export function FileUpload({
               variant="ghost"
               size="sm"
               onClick={handleRemove}
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/20 h-8 w-8 p-0"
+              aria-label="Remove file"
+              className="text-red-400 hover:text-red-300 hover:bg-red-500/20 h-11 w-11 sm:h-9 sm:w-9 p-0 shrink-0"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -212,7 +251,6 @@ export function FileUpload({
         )}
       </div>
 
-      {/* URL Input Alternative */}
       <div>
         <label className="block text-xs text-gray-400 mb-1">Or paste a URL:</label>
         <Input

@@ -1,15 +1,34 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { getEvents, type Event } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { UniversalPageLayout } from "@/components/UniversalPageLayout";
 import { BlurContainer, BlurCard, BlurActionButton } from "@/components/UniversalBlurComponents";
-import { PrimaryButton } from "@/components/ThemedComponents";
 
-// Mock data for school events (fallback)
-const mockEvents: Event[] = [];
+type TicketType = NonNullable<Event["ticketTypes"]>[number];
+
+const getLowestPrice = (ticketTypes: TicketType[]) =>
+  ticketTypes.reduce((lowest, ticket) => Math.min(lowest, ticket.price), Infinity);
+
+const getPriceLabel = (ticketTypes: TicketType[]) => {
+  if (ticketTypes.length === 0) return "FREE";
+  const lowestPrice = getLowestPrice(ticketTypes);
+  if (lowestPrice <= 0) return "FREE";
+  return ticketTypes.length === 1 ? `$${lowestPrice.toFixed(2)}` : `From $${lowestPrice.toFixed(2)}`;
+};
+
+const getTotalCapacity = (ticketTypes: TicketType[]) =>
+  ticketTypes.reduce((total, ticket) => total + (ticket.maxTickets || 0), 0);
+
+const getRequiredFormNames = (event: Event) => {
+  const names: string[] = [];
+  if (event.requiredForms?.studentIdRequired) names.push("Student ID");
+  for (const customForm of event.requiredForms?.customForms ?? []) {
+    if (customForm.required !== false) names.push(customForm.name);
+  }
+  return names;
+};
 
 export default function Activities() {
   const [, setLocation] = useLocation();
@@ -18,7 +37,6 @@ export default function Activities() {
   const [error, setError] = useState<string | null>(null);
   const { cartCount } = useCart();
 
-  // Load events from API
   useEffect(() => {
     const loadEvents = async () => {
       try {
@@ -40,11 +58,11 @@ export default function Activities() {
 
   const formatDate = (date: Date | string) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return dateObj.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
   };
 
@@ -58,13 +76,15 @@ export default function Activities() {
   };
 
   return (
-    <UniversalPageLayout 
-      pageType="activities" 
+    <UniversalPageLayout
+      pageType="activities"
       title="School Activities"
       rightElement={({ contentVisible }) => (
         <button
+          type="button"
+          aria-label="Open cart"
           onClick={handleCartClick}
-          className="relative p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/15 transition-all duration-300"
+          className="relative flex h-11 w-11 items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-white/15 transition-all duration-300"
           style={{
             backdropFilter: contentVisible ? 'blur(20px)' : 'blur(0px)',
             WebkitBackdropFilter: contentVisible ? 'blur(20px)' : 'blur(0px)',
@@ -83,14 +103,13 @@ export default function Activities() {
     >
       {({ contentVisible }) => (
         <>
-          {/* Activities Banner */}
-          <BlurContainer contentVisible={contentVisible} delay="200ms" className="p-6 mb-8 text-white">
-            <div className="flex flex-col md:flex-row items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Upcoming Events & Ticket Sales</h2>
-                <p className="mb-4">Don't miss out on exciting school events! View event details and purchase tickets.</p>
+          <BlurContainer contentVisible={contentVisible} delay="200ms" className="p-4 sm:p-6 mb-8 text-white">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold mb-2 break-words">Upcoming Events & Ticket Sales</h2>
+                <p className="mb-4 break-words">Don't miss out on exciting school events! View event details and purchase tickets.</p>
               </div>
-              <div className="mt-6 md:mt-0 h-24 w-24 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/20">
+              <div className="h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/20">
                 <svg className="h-12 w-12 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                 </svg>
@@ -98,8 +117,6 @@ export default function Activities() {
             </div>
           </BlurContainer>
 
-
-          {/* Loading State */}
           {loading && (
             <BlurContainer contentVisible={contentVisible} delay="400ms" className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400 mx-auto mb-4"></div>
@@ -107,7 +124,6 @@ export default function Activities() {
             </BlurContainer>
           )}
 
-          {/* Error State */}
           {error && (
             <BlurContainer contentVisible={contentVisible} delay="400ms" className="p-6 text-center mb-8">
               <div className="text-red-400 mb-4">
@@ -126,7 +142,6 @@ export default function Activities() {
             </BlurContainer>
           )}
 
-          {/* No Events State */}
           {!loading && !error && events.length === 0 && (
             <BlurContainer contentVisible={contentVisible} delay="400ms" className="p-6 text-center mb-8">
               <div className="text-gray-400 mb-4">
@@ -139,84 +154,98 @@ export default function Activities() {
             </BlurContainer>
           )}
 
-          {/* Events Grid */}
           {!loading && !error && events.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {events.map((event, index) => (
-                <BlurCard 
-                  key={event._id} 
+              {events.map((event, index) => {
+                const ticketTypes = event.ticketTypes ?? [];
+                const totalCapacity = getTotalCapacity(ticketTypes);
+                const lowestPrice = ticketTypes.length > 0 ? getLowestPrice(ticketTypes) : 0;
+                const requiredFormNames = getRequiredFormNames(event);
+                return (
+                <BlurCard
+                  key={event._id}
                   contentVisible={contentVisible}
                   index={index}
                   delay={`${500 + (index * 50)}ms`}
                 >
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-xl font-semibold text-white">{event.title}</h3>
+                  <div className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <h3 className="text-lg sm:text-xl font-semibold text-white break-words">{event.title}</h3>
                           {event.requiresApproval && (
                             <Badge variant="outline" className="bg-orange-500/20 text-orange-200 border-orange-500/30">
                               Requires Approval
                             </Badge>
                           )}
                         </div>
-                        <p className="text-gray-300 mb-3">{event.description}</p>
+                        <p className="text-gray-300 mb-3 break-words">{event.description}</p>
                       </div>
-                      <Badge variant="outline" className="ml-2">
+                      <Badge variant="outline" className="self-start whitespace-nowrap">
                         {event.category}
                       </Badge>
                     </div>
-                    
+
                     <div className="space-y-3 mb-4">
-                      <div className="flex items-center text-sm">
-                        <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-start text-sm">
+                        <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <span className="text-gray-200">{formatDate(event.date)}</span>
+                        <span className="text-gray-200 break-words">{formatDate(event.date)}</span>
                       </div>
-                      <div className="flex items-center text-sm">
-                        <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-start text-sm">
+                        <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span className="text-gray-200">{event.time}</span>
+                        <span className="text-gray-200 break-words">{event.time}</span>
                       </div>
-                      <div className="flex items-center text-sm">
-                        <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-start text-sm">
+                        <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        <span className="text-gray-200">{event.location}</span>
+                        <span className="text-gray-200 break-words">{event.location}</span>
                       </div>
                     </div>
 
-                    {/* Features */}
-                    {event.features && event.features.length > 0 && (
+                    {requiredFormNames.length > 0 && (
                       <div className="mb-4">
-                        <h4 className="font-medium text-gray-200 mb-2">Event Features:</h4>
+                        <h4 className="font-medium text-gray-200 mb-2">Forms Required:</h4>
                         <ul className="list-disc list-inside space-y-1">
-                          {event.features.map((feature, index) => (
-                            <li key={index} className="text-gray-300 text-sm">{feature}</li>
+                          {requiredFormNames.map((formName) => (
+                            <li key={formName} className="text-gray-300 text-sm break-words">{formName}</li>
                           ))}
                         </ul>
                       </div>
                     )}
 
-                    {/* Price Display */}
                     <div className="border-t border-white/10 pt-4 mb-4">
-                      {event.ticketTypes && event.ticketTypes.length > 0 ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
+                          <span className="text-2xl font-bold text-white">{getPriceLabel(ticketTypes)}</span>
+                          {lowestPrice > 0 && <span className="text-gray-400 text-sm ml-1">per ticket</span>}
+                        </div>
+                        {totalCapacity > 0 && (
+                          <div className="text-sm text-gray-400">
+                            Max: {totalCapacity} tickets
+                          </div>
+                        )}
+                      </div>
+
+                      {ticketTypes.length > 0 && (
+                        <div className="mt-4">
                           <h4 className="font-medium text-gray-200 mb-3">Ticket Options:</h4>
                           <div className="space-y-2">
-                            {event.ticketTypes.map((ticket, index) => (
-                              <div 
-                                key={index} 
-                                className="bg-white/5 flex items-center justify-between p-3 rounded-lg border border-white/10"
+                            {ticketTypes.map((ticket, ticketIndex) => (
+                              <div
+                                key={ticketIndex}
+                                className="bg-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg border border-white/10"
                               >
-                                <div className="flex-1">
-                                  <div className="font-medium text-white">{ticket.name}</div>
-                                  <div className="text-sm text-gray-300">{ticket.description}</div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-white break-words">{ticket.name}</div>
+                                  <div className="text-sm text-gray-300 break-words">{ticket.description}</div>
                                 </div>
-                                <div className="text-right">
+                                <div className="sm:text-right">
                                   <div className="text-lg font-bold text-green-400">${ticket.price.toFixed(2)}</div>
                                   <div className="text-xs text-gray-400">Max: {ticket.maxTickets}</div>
                                 </div>
@@ -224,37 +253,23 @@ export default function Activities() {
                             ))}
                           </div>
                         </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-2xl font-bold text-white">
-                              {event.price === 0 ? "FREE" : `$${event.price}`}
-                            </span>
-                            {event.price > 0 && <span className="text-gray-400 text-sm ml-1">per ticket</span>}
-                          </div>
-                          {event.maxTickets && (
-                            <div className="text-sm text-gray-400">
-                              Max: {event.maxTickets} tickets
-                            </div>
-                          )}
-                        </div>
                       )}
                     </div>
 
-                    {/* Large Details Button */}
                     <BlurActionButton
                       contentVisible={contentVisible}
                       onClick={() => handleEventDetails(event._id)}
-                      className="w-full py-4 text-lg"
+                      className="w-full min-h-11 py-4 text-base sm:text-lg"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span>View Details</span>
                     </BlurActionButton>
                   </div>
                 </BlurCard>
-              ))}
+                );
+              })}
             </div>
           )}
 

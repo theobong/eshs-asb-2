@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Loader2, CreditCard, Lock, ExternalLink } from 'lucide-react';
 
+const ACCEPTED_CARDS = ['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER'];
+
 interface CloverCheckoutProps {
   amount: number;
   checkoutUrl?: string;
@@ -11,12 +13,12 @@ interface CloverCheckoutProps {
   disabled?: boolean;
 }
 
-export function CloverCheckout({ 
+export function CloverCheckout({
   amount,
   checkoutUrl,
-  onRedirect, 
-  onError, 
-  disabled 
+  onRedirect,
+  onError,
+  disabled
 }: CloverCheckoutProps) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,14 +31,12 @@ export function CloverCheckout({
     setIsLoading(true);
 
     try {
-      // Small delay for UX
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Redirect to Clover checkout
+
       onRedirect(checkoutUrl);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Checkout error:', error);
-      onError(error.message || 'Failed to initialize checkout');
+      onError(error instanceof Error ? error.message : 'Failed to initialize checkout');
       setIsLoading(false);
     }
   };
@@ -48,7 +48,7 @@ export function CloverCheckout({
         <span className="text-sm text-gray-300">Secure payment powered by Clover</span>
       </div>
 
-      <Card className="p-6 bg-white/5 border-white/10">
+      <Card className="p-4 sm:p-6 bg-white/5 border-white/10">
         <div className="space-y-4">
           <div className="text-center">
             <CreditCard className="w-16 h-16 text-blue-500 mx-auto mb-4" />
@@ -69,7 +69,7 @@ export function CloverCheckout({
             <Button
               onClick={handleCheckout}
               disabled={isLoading || disabled}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3"
+              className="w-full min-h-11 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3"
             >
               {isLoading ? (
                 <>
@@ -91,27 +91,15 @@ export function CloverCheckout({
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-4 pt-2">
-            <img 
-              src="https://via.placeholder.com/40x25/000000/FFFFFF?text=VISA" 
-              alt="Visa" 
-              className="h-6 opacity-70"
-            />
-            <img 
-              src="https://via.placeholder.com/40x25/000000/FFFFFF?text=MC" 
-              alt="Mastercard" 
-              className="h-6 opacity-70"
-            />
-            <img 
-              src="https://via.placeholder.com/40x25/000000/FFFFFF?text=AMEX" 
-              alt="American Express" 
-              className="h-6 opacity-70"
-            />
-            <img 
-              src="https://via.placeholder.com/40x25/000000/FFFFFF?text=DISC" 
-              alt="Discover" 
-              className="h-6 opacity-70"
-            />
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            {ACCEPTED_CARDS.map((card) => (
+              <span
+                key={card}
+                className="px-2 py-1 rounded border border-white/10 bg-white/5 text-[10px] font-semibold tracking-wide text-gray-300"
+              >
+                {card}
+              </span>
+            ))}
           </div>
         </div>
       </Card>

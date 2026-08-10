@@ -34,7 +34,7 @@ When a student submits a form, they automatically receive a receipt:
   - Next steps and expected timeline
   - All submission details for records
 - **Attachments**: All submitted forms are attached as a receipt
-- **Subject**: 📧 Submission Receipt - [Event Name]
+- **Subject**: Form Submission Receipt - [Event Name]
 - **Design**: Purple gradient theme with clear status tracking
 
 ### 3. Approval Notification
@@ -46,7 +46,7 @@ When an admin approves a form submission:
   - Quantity and total amount
   - Call-to-action button for ticket purchase
   - 48-hour deadline notice
-- **Subject**: ✅ Activity Request Approved - [Event Name]
+- **Subject**: Form Submission Approved - [Event Name]
 - **Design**: Green gradient theme with professional styling
 
 ### 4. Rejection Notification
@@ -57,7 +57,7 @@ When an admin rejects a form submission:
   - Clear reason for rejection in highlighted box
   - Encouragement to resubmit with guidelines
   - Call-to-action button to try again
-- **Subject**: 📋 Activity Request Update - [Event Name]
+- **Subject**: Form Submission Update - [Event Name]
 - **Design**: Professional layout with helpful resources
 
 ## Setup Instructions

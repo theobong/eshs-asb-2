@@ -1,34 +1,30 @@
 import axios from 'axios';
 import crypto from 'crypto';
 
-interface CloverPaymentRequest {
-  amount: number;
-  currency: string;
-  source: string;
-  description?: string;
-  metadata?: Record<string, any>;
-}
-
-interface CloverPaymentResponse {
-  id: string;
-  amount: number;
-  currency: string;
-  created: number;
-  status: 'succeeded' | 'pending' | 'failed';
-  source: any;
-  metadata?: Record<string, any>;
+interface CheckoutLineItem {
+  name: string;
+  unitPrice: number;
+  quantity: number;
 }
 
 interface PaymentIntentRequest {
   amount: number;
   currency?: string;
   paymentMethodTypes?: string[];
+  lineItems: CheckoutLineItem[];
   metadata?: {
     orderId?: string;
     customerEmail?: string;
     customerName?: string;
-    items?: string;
+    submissionId?: string;
   };
+}
+
+export interface PaymentVerification {
+  checked: boolean;
+  paid: boolean;
+  amount?: number;
+  reason: string;
 }
 
 class PaymentService {
@@ -40,26 +36,24 @@ class PaymentService {
   private baseUrl: string;
 
   constructor() {
-    // Hosted Checkout credentials
     this.privateToken = process.env.CLOVER_PRIVATE_TOKEN || '';
     this.merchantId = process.env.CLOVER_MERCHANT_ID || '';
-    
-    // v3 API credentials (for order status checking)
+
     this.v3ApiToken = process.env.CLOVER_V3_API_TOKEN || '';
     this.v3MerchantId = process.env.CLOVER_V3_MERCHANT_ID || '';
-    
+
     this.environment = (process.env.CLOVER_ENVIRONMENT as 'sandbox' | 'production') || 'sandbox';
-    
-    this.baseUrl = this.environment === 'production' 
+
+    this.baseUrl = this.environment === 'production'
       ? 'https://api.clover.com'
       : 'https://apisandbox.dev.clover.com';
 
     if (!this.privateToken || !this.merchantId) {
-      console.warn('⚠️ Clover Hosted Checkout credentials not configured. Payment processing will not work.');
+      console.warn('Clover Hosted Checkout credentials not configured. Payment processing will not work.');
     }
-    
+
     if (!this.v3ApiToken || !this.v3MerchantId) {
-      console.warn('⚠️ Clover v3 API credentials not configured. Order status checking will not work.');
+      console.warn('Clover v3 API credentials not configured. Order status checking will not work.');
     }
   }
 
@@ -80,23 +74,16 @@ class PaymentService {
   }
 
   async createPaymentIntent(request: PaymentIntentRequest): Promise<any> {
-    // Remove trailing slash from CLIENT_URL if present
     const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
 
     try {
-      // Generate unique order ID for tracking
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 
-      // Parse customer name
       const fullName = request.metadata?.customerName || '';
       const nameParts = fullName.split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      // Parse items from metadata
-      const items = JSON.parse(request.metadata?.items || '[]');
-
-      // Determine the return URL type (cart checkout or ticket checkout)
       const isTicketCheckout = request.metadata?.submissionId ? true : false;
       const successUrl = isTicketCheckout
         ? `${clientUrl}/checkout/success?type=ticket&submissionId=${request.metadata?.submissionId}`
@@ -105,7 +92,6 @@ class PaymentService {
         ? `${clientUrl}/checkout/${request.metadata?.submissionId}?error=payment_failed`
         : `${clientUrl}/shop/checkout?error=payment_failed`;
 
-      // Create checkout session payload according to Clover API
       const checkoutPayload = {
         customer: {
           email: request.metadata?.customerEmail || '',
@@ -113,10 +99,10 @@ class PaymentService {
           lastName: lastName
         },
         shoppingCart: {
-          lineItems: items.map((item: any) => ({
+          lineItems: request.lineItems.map((item) => ({
             name: item.name,
-            price: Math.round(item.price * 100), // Convert to cents
-            unitQty: item.quantity || 1,
+            price: Math.round(item.unitPrice * 100),
+            unitQty: item.quantity,
             note: `Item: ${item.name}`
           }))
         },
@@ -128,7 +114,6 @@ class PaymentService {
 
       console.log('Creating Clover checkout session with payload:', JSON.stringify(checkoutPayload, null, 2));
 
-      // Use the correct Clover Hosted Checkout API endpoint
       const apiUrl = this.environment === 'production'
         ? 'https://api.clover.com/invoicingcheckoutservice/v1/checkouts'
         : 'https://apisandbox.dev.clover.com/invoicingcheckoutservice/v1/checkouts';
@@ -144,7 +129,6 @@ class PaymentService {
 
       console.log('Clover checkout session response:', response.data);
 
-      // Extract the checkout URL from response
       const checkoutUrl = response.data.href;
       const sessionId = response.data.id;
 
@@ -162,21 +146,19 @@ class PaymentService {
       };
     } catch (error: any) {
       console.error('Failed to create Clover checkout session:', error.response?.data || error.message);
-      
-      // Log the full error for debugging
+
       if (error.response) {
         console.error('Response status:', error.response.status);
         console.error('Response headers:', error.response.headers);
         console.error('Response data:', error.response.data);
       }
-      
+
       throw new Error(`Failed to create checkout session: ${error.response?.data?.message || error.message}`);
     }
   }
 
   async processPayment(paymentToken: string, orderId: string): Promise<any> {
     try {
-      // Process payment with Clover
       const response = await axios.post(
         `${this.baseUrl}/v1/orders/${orderId}/pay`,
         {
@@ -190,13 +172,60 @@ class PaymentService {
         success: true,
         transactionId: response.data.id,
         status: response.data.status,
-        amount: response.data.amount / 100, // Convert from cents
+        amount: response.data.amount / 100,
         paymentMethod: response.data.source?.brand || 'card',
         last4: response.data.source?.last4
       };
     } catch (error: any) {
       console.error('Payment processing failed:', error.response?.data || error.message);
       throw new Error('Payment processing failed');
+    }
+  }
+
+  async verifyOrderPayment(cloverOrderId: string, expectedAmount?: number): Promise<PaymentVerification> {
+    if (!cloverOrderId) {
+      return { checked: false, paid: false, reason: 'no Clover order id recorded for this purchase' };
+    }
+
+    if (!this.v3ApiToken || !this.v3MerchantId) {
+      return { checked: false, paid: false, reason: 'CLOVER_V3_API_TOKEN/CLOVER_V3_MERCHANT_ID not configured' };
+    }
+
+    try {
+      const paymentsResponse = await axios.get(
+        `${this.baseUrl}/v3/merchants/${this.v3MerchantId}/orders/${cloverOrderId}/payments`,
+        { headers: this.getV3Headers() }
+      );
+
+      const payments = paymentsResponse.data?.elements || [];
+      const successful = payments.filter((p: any) => p.result === 'SUCCESS' || p.state === 'CLOSED');
+
+      if (successful.length === 0) {
+        return { checked: true, paid: false, reason: 'Clover reports no successful payment on this order' };
+      }
+
+      const paidCents = successful.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+      const paidAmount = paidCents / 100;
+
+      if (typeof expectedAmount === 'number') {
+        const shortfall = expectedAmount - paidAmount;
+        if (shortfall > 0.01) {
+          return {
+            checked: true,
+            paid: false,
+            amount: paidAmount,
+            reason: `Clover payment of $${paidAmount.toFixed(2)} is short of the $${expectedAmount.toFixed(2)} owed`
+          };
+        }
+      }
+
+      return { checked: true, paid: true, amount: paidAmount, reason: 'confirmed by Clover' };
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return { checked: true, paid: false, reason: 'Clover does not know this order id' };
+      }
+      console.error('Clover payment verification call failed:', error.response?.data || error.message);
+      return { checked: false, paid: false, reason: 'Clover API request failed' };
     }
   }
 
@@ -212,25 +241,23 @@ class PaymentService {
         };
       }
 
-      // Check using Clover's v3 Orders API with v3 credentials
       const response = await axios.get(
         `${this.baseUrl}/v3/merchants/${this.v3MerchantId}/orders/${orderId}`,
-        { 
+        {
           headers: this.getV3Headers()
         }
       );
 
       if (response.data) {
         const order = response.data;
-        // Check if order has payments
         const paymentsResponse = await axios.get(
           `${this.baseUrl}/v3/merchants/${this.v3MerchantId}/orders/${orderId}/payments`,
           { headers: this.getV3Headers() }
         );
-        
+
         const payments = paymentsResponse.data?.elements || [];
         const isPaid = payments.some((p: any) => p.result === 'SUCCESS' || p.state === 'CLOSED');
-        
+
         return {
           orderId: orderId,
           status: isPaid ? 'paid' : 'pending',
@@ -247,7 +274,6 @@ class PaymentService {
         paymentStatus: 'pending'
       };
     } catch (error: any) {
-      // If order not found in Clover, return pending
       console.log(`Order ${orderId} status check:`, error.response?.status === 404 ? 'Not found in Clover' : 'API Error');
       return {
         orderId: orderId,
@@ -258,21 +284,20 @@ class PaymentService {
     }
   }
 
-  // New method to sync all pending orders with Clover
   async syncOrderStatuses(orderIds: string[]): Promise<Map<string, string>> {
     const statusMap = new Map<string, string>();
-    
+
     for (const orderId of orderIds) {
       if (!orderId) continue;
-      
+
       try {
         const status = await this.getPaymentStatus(orderId);
         statusMap.set(orderId, status.paymentStatus);
-      } catch (error) {
+      } catch {
         statusMap.set(orderId, 'pending');
       }
     }
-    
+
     return statusMap;
   }
 
@@ -299,7 +324,6 @@ class PaymentService {
     }
   }
 
-  // Generate a secure payment token for client-side use
   generateClientToken(orderId: string): string {
     const timestamp = Date.now();
     const data = `${this.merchantId}:${orderId}:${timestamp}`;
@@ -307,7 +331,7 @@ class PaymentService {
       .createHmac('sha256', this.privateToken)
       .update(data)
       .digest('hex');
-    
+
     return Buffer.from(JSON.stringify({
       merchantId: this.merchantId,
       orderId,
@@ -317,30 +341,35 @@ class PaymentService {
     })).toString('base64');
   }
 
-  // Verify webhook signature from Clover
   verifyWebhookSignature(payload: string, signature: string): boolean {
     const webhookSecret = process.env.CLOVER_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      console.warn('⚠️ CLOVER_WEBHOOK_SECRET not configured - webhook signature verification disabled');
-      return true; // Allow webhook in development if secret not configured
+      console.error('CLOVER_WEBHOOK_SECRET not configured - rejecting webhook, cannot prove it came from Clover');
+      return false;
+    }
+
+    if (!signature) {
+      return false;
     }
 
     try {
-      // Clover typically sends signatures in the format "sha256=<hash>"
       const expectedSignature = crypto
         .createHmac('sha256', webhookSecret)
         .update(payload)
         .digest('hex');
-      
-      // Handle different signature formats
-      const receivedSignature = signature.startsWith('sha256=') 
-        ? signature.substring(7) 
+
+      const receivedSignature = signature.startsWith('sha256=')
+        ? signature.substring(7)
         : signature;
-      
-      return crypto.timingSafeEqual(
-        Buffer.from(expectedSignature),
-        Buffer.from(receivedSignature)
-      );
+
+      const expected = Buffer.from(expectedSignature);
+      const received = Buffer.from(receivedSignature);
+
+      if (expected.length !== received.length) {
+        return false;
+      }
+
+      return crypto.timingSafeEqual(expected, received);
     } catch (error) {
       console.error('Webhook signature verification failed:', error);
       return false;

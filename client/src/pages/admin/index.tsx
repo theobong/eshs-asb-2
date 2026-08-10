@@ -8,9 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit, Trash2, Package, Calendar, Info, Video, FileText, Check, X, Eye, BarChart3, Users, Download, Send, DollarSign, TrendingUp, LogOut } from 'lucide-react';
-import { ThemedCard, PrimaryButton, SecondaryButton, OutlineButton } from '@/components/ThemedComponents';
-import { CommaSeparatedInput } from '@/components/ui/comma-separated-input';
+import { PlusCircle, Edit, Trash2, Package, Calendar, Info, FileText, Check, X, Eye, Users, DollarSign, LogOut, ArrowUp, ArrowDown } from 'lucide-react';
+import { PrimaryButton, OutlineButton } from '@/components/ThemedComponents';
 import { AdminAuth } from '@/components/AdminAuth';
 import { FileUpload } from '@/components/FileUpload';
 import {
@@ -21,12 +20,110 @@ import {
   getStudentGovPositions, createStudentGovPosition, updateStudentGovPosition, deleteStudentGovPosition,
   getClubs, createClub, updateClub, deleteClub,
   getFormSubmissions, updateFormSubmission,
-  getPurchases, updatePurchase,
-  Product, Event, VideoPost, Announcement, StudentGovPosition, Club, FormSubmission, Purchase
+  getPurchases,
+  Product, Event, VideoPost, Announcement, StudentGovPosition, Club, FormSubmission, FormSubmissionStatus, Purchase
 } from '@/lib/api';
 import OrdersManagement from '@/components/admin/OrdersManagement';
 
-// Simple form components for each data type
+const GLASS_FIELD_CLASS = "bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400";
+
+const ICON_BUTTON_CLASS = "h-11 w-11 md:h-8 md:w-8 p-0";
+
+const TAB_TRIGGER_CLASS = "flex-shrink-0 whitespace-nowrap gap-1.5 min-h-11 px-3 py-2 text-xs md:text-sm text-white";
+
+function TextField({ label, value, onChange, placeholder, required, type, step }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  type?: string;
+  step?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-white mb-2">{label}</label>
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        step={step}
+        className={GLASS_FIELD_CLASS}
+      />
+    </div>
+  );
+}
+
+function TextAreaField({ label, value, onChange, placeholder, required, rows }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  rows?: number;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-white mb-2">{label}</label>
+      <Textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        rows={rows}
+        className={GLASS_FIELD_CLASS}
+      />
+    </div>
+  );
+}
+
+function BackgroundVideo() {
+  return (
+    <div className="fixed inset-0 w-full h-full overflow-hidden -z-10">
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto transform -translate-x-1/2 -translate-y-1/2 object-cover"
+      >
+      </video>
+    </div>
+  );
+}
+
+function resolveEventId(eventId: FormSubmission['eventId']): string | undefined {
+  if (eventId && typeof eventId === 'object') {
+    return (eventId as { _id?: string })._id;
+  }
+  return eventId;
+}
+
+function getSubmissionStatusColor(status: FormSubmissionStatus) {
+  switch (status) {
+    case 'pending': return "bg-yellow-600/20 border-yellow-600 text-yellow-200";
+    case 'approved': return "bg-orange-500/20 border-orange-500 text-orange-200";
+    case 'paid': return "bg-green-600/20 border-green-600 text-green-200";
+    case 'rejected': return "bg-red-600/20 border-red-600 text-red-200";
+    default: return "bg-gray-600/20 border-gray-600 text-gray-200";
+  }
+}
+
+function getSubmissionStatusLabel(status: FormSubmissionStatus) {
+  switch (status) {
+    case 'approved': return 'Approved (Unpaid)';
+    case 'paid': return 'Paid';
+    default: return status;
+  }
+}
+
+function getLowestTicketPrice(event: Event): number {
+  const prices = (event.ticketTypes || []).map(ticket => ticket.price);
+  return prices.length > 0 ? Math.min(...prices) : 0;
+}
+
 function VideoForm({ video, onSubmit, onCancel }: {
   video?: VideoPost;
   onSubmit: (data: Partial<VideoPost>) => void;
@@ -53,39 +150,30 @@ function VideoForm({ video, onSubmit, onCancel }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-white mb-2">Video Title</label>
-        <Input
-          value={formData.title || ''}
-          onChange={(e) => setFormData({...formData, title: e.target.value})}
-          placeholder="Enter video title"
-          required
-          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-        />
-      </div>
+      <TextField
+        label="Video Title"
+        value={formData.title || ''}
+        onChange={(value) => setFormData({...formData, title: value})}
+        placeholder="Enter video title"
+        required
+      />
 
-      <div>
-        <label className="block text-sm font-medium text-white mb-2">Description</label>
-        <Textarea
-          value={formData.description || ''}
-          onChange={(e) => setFormData({...formData, description: e.target.value})}
-          placeholder="Video description"
-          required
-          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-        />
-      </div>
+      <TextAreaField
+        label="Description"
+        value={formData.description || ''}
+        onChange={(value) => setFormData({...formData, description: value})}
+        placeholder="Video description"
+        required
+      />
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">Video URL</label>
-          <Input
-            value={formData.videoUrl || ''}
-            onChange={(e) => setFormData({...formData, videoUrl: e.target.value})}
-            placeholder="URL to video"
-            required
-            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-          />
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <TextField
+          label="Video URL"
+          value={formData.videoUrl || ''}
+          onChange={(value) => setFormData({...formData, videoUrl: value})}
+          placeholder="URL to video"
+          required
+        />
         <div>
           <FileUpload
             value={formData.thumbnailUrl || ''}
@@ -98,24 +186,20 @@ function VideoForm({ video, onSubmit, onCancel }: {
         </div>
       </div>
 
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">Author</label>
-          <Input
-            value={formData.author || ''}
-            onChange={(e) => setFormData({...formData, author: e.target.value})}
-            placeholder="Video author"
-            required
-            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-          />
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <TextField
+          label="Author"
+          value={formData.author || ''}
+          onChange={(value) => setFormData({...formData, author: value})}
+          placeholder="Video author"
+          required
+        />
         <div>
           <label className="block text-sm font-medium text-white mb-2">Featured</label>
           <div className="flex items-center mt-3">
-            <input 
-              type="checkbox" 
-              id="featured" 
+            <input
+              type="checkbox"
+              id="featured"
               checked={!!formData.featured}
               onChange={(e) => setFormData({...formData, featured: e.target.checked})}
               className="h-4 w-4"
@@ -126,9 +210,9 @@ function VideoForm({ video, onSubmit, onCancel }: {
       </div>
 
       <div className="flex justify-end space-x-4 mt-4">
-        <Button 
-          type="button" 
-          variant="outline" 
+        <Button
+          type="button"
+          variant="outline"
           onClick={onCancel}
           className="bg-white/10 hover:bg-white/20 text-white border-white/20"
         >
@@ -204,30 +288,24 @@ function ProductForm({ product, onSubmit, onCancel }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">Product Name</label>
-          <Input
-            value={formData.name || ''}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
-            placeholder="Enter product name"
-            required
-            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-          />
-        </div>
+        <TextField
+          label="Product Name"
+          value={formData.name || ''}
+          onChange={(value) => setFormData({...formData, name: value})}
+          placeholder="Enter product name"
+          required
+        />
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Price ($)</label>
-            <Input
-              type="number"
-              value={formData.price || ''}
-              onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value)})}
-              placeholder="0.00"
-              step="0.01"
-              required
-              className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-            />
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <TextField
+            label="Price ($)"
+            type="number"
+            value={formData.price ? String(formData.price) : ''}
+            onChange={(value) => setFormData({...formData, price: parseFloat(value) || 0})}
+            placeholder="0.00"
+            step="0.01"
+            required
+          />
           <div>
             <label className="block text-sm font-medium text-white mb-2">Category</label>
             <Select
@@ -245,18 +323,14 @@ function ProductForm({ product, onSubmit, onCancel }: {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">Organization</label>
-          <Input
-            value={formData.organization || ''}
-            onChange={(e) => setFormData({...formData, organization: e.target.value})}
-            placeholder="ASB, Drama Club, etc."
-            required
-            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-          />
-        </div>
+        <TextField
+          label="Organization"
+          value={formData.organization || ''}
+          onChange={(value) => setFormData({...formData, organization: value})}
+          placeholder="ASB, Drama Club, etc."
+          required
+        />
 
-        {/* Size & Stock fields */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm font-medium text-white">Size & Stock</label>
@@ -304,16 +378,13 @@ function ProductForm({ product, onSubmit, onCancel }: {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">Description</label>
-          <Textarea
-            value={formData.description || ''}
-            onChange={(e) => setFormData({...formData, description: e.target.value})}
-            placeholder="Product description"
-            rows={3}
-            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-          />
-        </div>
+        <TextAreaField
+          label="Description"
+          value={formData.description || ''}
+          onChange={(value) => setFormData({...formData, description: value})}
+          placeholder="Product description"
+          rows={3}
+        />
 
         <div>
           <FileUpload
@@ -325,7 +396,7 @@ function ProductForm({ product, onSubmit, onCancel }: {
             maxSizeMB={5}
           />
         </div>
-        
+
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm font-medium text-white">Additional Images</label>
@@ -371,14 +442,14 @@ function ProductForm({ product, onSubmit, onCancel }: {
         </div>
 
         <div className="flex gap-2 pt-4">
-          <Button 
+          <Button
             type="submit"
             className="bg-blue-600/20 hover:bg-blue-600/40 backdrop-blur text-blue-200 border border-blue-600/30"
           >
             {product ? 'Update Product' : 'Add Product'}
           </Button>
-          <Button 
-            type="button" 
+          <Button
+            type="button"
             variant="outline"
             onClick={onCancel}
             className="bg-white/10 hover:bg-white/20 backdrop-blur text-white border-white/20"
@@ -394,9 +465,9 @@ function EventForm({ event, onSubmit, onCancel }: {
   event?: Event;
   onSubmit: (data: Partial<Event>) => void;
   onCancel: () => void;
-}) {  const [formData, setFormData] = useState<Partial<Event>>(() => {
+}) {
+  const [formData, setFormData] = useState<Partial<Event>>(() => {
     if (event) {
-      // Ensure existing events have proper structure with fallbacks
       return {
         ...event,
         ticketTypes: Array.isArray(event.ticketTypes) ? event.ticketTypes : [],
@@ -421,10 +492,10 @@ function EventForm({ event, onSubmit, onCancel }: {
       }
     };
   });
-  
+
   const [newCustomForm, setNewCustomForm] = useState({ name: '', pdfUrl: '', required: true });
-  const [newTicketType, setNewTicketType] = useState({ name: '', description: '', price: '' });
-  
+  const [newTicketType, setNewTicketType] = useState({ name: '', description: '', price: '', maxTickets: '' });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
@@ -434,12 +505,10 @@ function EventForm({ event, onSubmit, onCancel }: {
     const value = e.target.value;
     if (value) {
       const newDate = new Date(value);
-      // Only update if the date is valid
       if (!isNaN(newDate.getTime())) {
         setFormData({...formData, date: newDate});
       }
     } else {
-      // Handle empty value
       setFormData({...formData, date: undefined});
     }
   };
@@ -447,19 +516,18 @@ function EventForm({ event, onSubmit, onCancel }: {
   const formatDateForInput = (date: Date | undefined) => {
     if (!date) return '';
     const d = new Date(date);
-    // Check if date is valid before calling toISOString
     if (isNaN(d.getTime())) return '';
     return d.toISOString().split('T')[0];
   };
-  
+
   const addCustomForm = () => {
     if (newCustomForm.name.trim() && newCustomForm.pdfUrl.trim() && formData.requiredForms) {
       setFormData({
         ...formData,
         requiredForms: {
           ...formData.requiredForms,
-          customForms: [...(formData.requiredForms.customForms || []), { 
-            name: newCustomForm.name.trim(), 
+          customForms: [...(formData.requiredForms.customForms || []), {
+            name: newCustomForm.name.trim(),
             pdfUrl: newCustomForm.pdfUrl.trim(),
             required: newCustomForm.required
           }]
@@ -492,17 +560,19 @@ function EventForm({ event, onSubmit, onCancel }: {
 
   const addTicketType = () => {
     const price = parseFloat(newTicketType.price);
+    const maxTickets = parseInt(newTicketType.maxTickets, 10);
 
-    if (newTicketType.name.trim() && newTicketType.description.trim() && price > 0) {
+    if (newTicketType.name.trim() && newTicketType.description.trim() && price > 0 && maxTickets > 0) {
       setFormData({
         ...formData,
         ticketTypes: [...(formData.ticketTypes || []), {
           name: newTicketType.name.trim(),
           description: newTicketType.description.trim(),
-          price: price
+          price: price,
+          maxTickets: maxTickets
         }]
       });
-      setNewTicketType({ name: '', description: '', price: '' });
+      setNewTicketType({ name: '', description: '', price: '', maxTickets: '' });
     }
   };
 
@@ -525,7 +595,7 @@ function EventForm({ event, onSubmit, onCancel }: {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-white mb-2">Category</label>
           <Input
@@ -546,7 +616,7 @@ function EventForm({ event, onSubmit, onCancel }: {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-white mb-2">Time</label>
           <Input
@@ -577,8 +647,6 @@ function EventForm({ event, onSubmit, onCancel }: {
         />
       </div>
 
-
-      {/* Ticket Types Section */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="block text-sm font-medium text-white">Ticket Types</label>
@@ -593,10 +661,9 @@ function EventForm({ event, onSubmit, onCancel }: {
             Add Ticket Type
           </Button>
         </div>
-        
-        {/* New Ticket Type Form */}
+
         <div className="mb-4 p-4 rounded-lg border border-white/20 bg-white/5">
-          <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <Input
               placeholder="Ticket Type Name (e.g., General Admission)"
               value={newTicketType.name}
@@ -610,28 +677,38 @@ function EventForm({ event, onSubmit, onCancel }: {
               step="0.01"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               placeholder="Description (e.g., Includes dinner and dancing)"
               value={newTicketType.description}
               onChange={(e) => setNewTicketType({...newTicketType, description: e.target.value})}
             />
+            <Input
+              type="number"
+              placeholder="Max Tickets Available"
+              value={newTicketType.maxTickets}
+              onChange={(e) => setNewTicketType({...newTicketType, maxTickets: e.target.value})}
+              min="1"
+              step="1"
+            />
           </div>
         </div>
 
-        {/* Existing Ticket Types List */}
         <div className="space-y-2 max-h-40 overflow-y-auto">
           {(formData.ticketTypes || []).map((ticketType, index) => (
             <div key={index} className="flex gap-2 items-center p-3 bg-white/5 rounded-lg border border-white/10">
-              <div className="flex-1 grid grid-cols-3 gap-2 text-sm">
+              <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-4 gap-2 text-sm">
                 <div>
-                  <p className="font-medium text-white">{ticketType.name}</p>
+                  <p className="font-medium text-white break-words">{ticketType.name}</p>
                 </div>
                 <div>
-                  <p className="text-gray-300">{ticketType.description}</p>
+                  <p className="text-gray-300 break-words">{ticketType.description}</p>
                 </div>
                 <div>
                   <p className="text-green-400">${ticketType.price.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-300">Max: {ticketType.maxTickets}</p>
                 </div>
               </div>
               <Button
@@ -663,12 +740,10 @@ function EventForm({ event, onSubmit, onCancel }: {
         </label>
       </div>
 
-      {/* Form Requirements Section */}
       {formData.requiresApproval && (
         <div className="border border-white/20 rounded-lg p-4 bg-white/5 space-y-4">
           <h3 className="text-lg font-semibold text-white">Form Requirements</h3>
-          
-          {/* Form Requirements Checkboxes */}
+
           <div className="flex items-center space-x-2 mb-4">
             <input
               type="checkbox"
@@ -682,11 +757,9 @@ function EventForm({ event, onSubmit, onCancel }: {
             </label>
           </div>
 
-          {/* Custom Forms Section */}
           <div className="mt-4">
             <label className="block text-sm font-medium text-white mb-2">Required Forms</label>
-            
-            {/* Add Custom Form */}
+
             <div className="space-y-4 mb-4">
               <Input
                 value={newCustomForm.name}
@@ -714,10 +787,10 @@ function EventForm({ event, onSubmit, onCancel }: {
                   Required Form
                 </label>
               </div>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 onClick={addCustomForm}
-                variant="outline" 
+                variant="outline"
                 size="sm"
                 className="border-white/20 text-gray-300 hover:bg-white/10"
                 disabled={!newCustomForm.name.trim() || !newCustomForm.pdfUrl.trim()}
@@ -727,7 +800,6 @@ function EventForm({ event, onSubmit, onCancel }: {
               </Button>
             </div>
 
-            {/* Custom Forms List */}
             {formData.requiredForms?.customForms && Array.isArray(formData.requiredForms.customForms) && formData.requiredForms.customForms.length > 0 && (
               <div className="space-y-2">
                 {formData.requiredForms.customForms.map((form, index) => (
@@ -736,16 +808,16 @@ function EventForm({ event, onSubmit, onCancel }: {
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-white">{form.name}</p>
                         <span className={`text-xs px-2 py-1 rounded ${
-                          form.required !== false 
-                            ? 'bg-red-500/20 text-red-200 border border-red-500/30' 
+                          form.required !== false
+                            ? 'bg-red-500/20 text-red-200 border border-red-500/30'
                             : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
                         }`}>
                           {form.required !== false ? 'Required' : 'Optional'}
                         </span>
                       </div>
-                      <a 
-                        href={form.pdfUrl} 
-                        target="_blank" 
+                      <a
+                        href={form.pdfUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-blue-400 hover:text-blue-300 break-all"
                       >
@@ -757,7 +829,7 @@ function EventForm({ event, onSubmit, onCancel }: {
                       onClick={() => removeCustomForm(index)}
                       variant="destructive"
                       size="sm"
-                      className="h-8 w-8 p-0 ml-2"
+                      className={`${ICON_BUTTON_CLASS} ml-2`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -781,8 +853,6 @@ function EventForm({ event, onSubmit, onCancel }: {
   );
 }
 
-// Similar pattern for other forms... (keeping it brief for now)
-
 function AnnouncementForm({ announcement, onSubmit, onCancel }: {
   announcement?: Announcement;
   onSubmit: (data: Partial<Announcement>) => void;
@@ -803,28 +873,22 @@ function AnnouncementForm({ announcement, onSubmit, onCancel }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-white mb-2">Announcement Title</label>
-        <Input
-          value={formData.title || ''}
-          onChange={(e) => setFormData({...formData, title: e.target.value})}
-          placeholder="Enter announcement title"
-          required
-          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-        />
-      </div>
+      <TextField
+        label="Announcement Title"
+        value={formData.title || ''}
+        onChange={(value) => setFormData({...formData, title: value})}
+        placeholder="Enter announcement title"
+        required
+      />
 
-      <div>
-        <label className="block text-sm font-medium text-white mb-2">Content</label>
-        <Textarea
-          value={formData.content || ''}
-          onChange={(e) => setFormData({...formData, content: e.target.value})}
-          placeholder="Announcement content"
-          rows={4}
-          required
-          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-        />
-      </div>
+      <TextAreaField
+        label="Content"
+        value={formData.content || ''}
+        onChange={(value) => setFormData({...formData, content: value})}
+        placeholder="Announcement content"
+        rows={4}
+        required
+      />
 
       <div>
         <label className="block text-sm font-medium text-white mb-2">Priority</label>
@@ -852,7 +916,6 @@ function AnnouncementForm({ announcement, onSubmit, onCancel }: {
   );
 }
 
-// Student Government Form
 function StudentGovForm({ member, onSubmit, onCancel }: {
   member?: StudentGovPosition;
   onSubmit: (data: Partial<StudentGovPosition>) => void;
@@ -898,16 +961,13 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-white mb-2">Position Title</label>
-        <Input
-          value={formData.position || ''}
-          onChange={(e) => setFormData({...formData, position: e.target.value})}
-          placeholder="ASB President, Secretary, etc."
-          required
-          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-        />
-      </div>
+      <TextField
+        label="Position Title"
+        value={formData.position || ''}
+        onChange={(value) => setFormData({...formData, position: value})}
+        placeholder="ASB President, Secretary, etc."
+        required
+      />
       <div>
         <label className="block text-sm font-medium text-white mb-2">Grade Level</label>
         <Select value={formData.gradeLevel || ''} onValueChange={(value: string) => setFormData({...formData, gradeLevel: value})}>
@@ -921,34 +981,37 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
             <SelectItem value="sophomore">Sophomore</SelectItem>
             <SelectItem value="freshman">Freshman</SelectItem>
             <SelectItem value="committee">Committee</SelectItem>
+            <SelectItem value="birds eye">Birds Eye</SelectItem>
+            <SelectItem value="tech">Tech</SelectItem>
+            <SelectItem value="culture and diversity">Culture and Diversity</SelectItem>
+            <SelectItem value="spirit">Spirit</SelectItem>
+            <SelectItem value="publicity">Publicity</SelectItem>
+            <SelectItem value="clubs">Clubs</SelectItem>
+            <SelectItem value="athletics">Athletics</SelectItem>
+            <SelectItem value="student/staff">Student/Staff</SelectItem>
+            <SelectItem value="special projects">Special Projects</SelectItem>
+            <SelectItem value="performance">Performance</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-white mb-2">Bio</label>
-        <Textarea
-          value={formData.bio || ''}
-          onChange={(e) => setFormData({...formData, bio: e.target.value})}
-          placeholder="Brief bio for this position"
-          rows={2}
-          required
-          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-        />
-      </div>
+      <TextAreaField
+        label="Bio"
+        value={formData.bio || ''}
+        onChange={(value) => setFormData({...formData, bio: value})}
+        placeholder="Brief bio for this position"
+        rows={2}
+        required
+      />
 
-      <div>
-        <label className="block text-sm font-medium text-white mb-2">Description</label>
-        <Textarea
-          value={formData.description || ''}
-          onChange={(e) => setFormData({...formData, description: e.target.value})}
-          placeholder="Position description and responsibilities"
-          rows={3}
-          required
-          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-        />
-      </div>
-
+      <TextAreaField
+        label="Description"
+        value={formData.description || ''}
+        onChange={(value) => setFormData({...formData, description: value})}
+        placeholder="Position description and responsibilities"
+        rows={3}
+        required
+      />
 
       <div>
         <div className="flex justify-between items-center mb-2">
@@ -963,7 +1026,7 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
           <div className="space-y-3">
             {formData.currentRepresentatives.map((rep, index) => (
               <div key={index} className="border border-white/20 rounded-lg p-3 bg-white/5">
-                <div className="grid grid-cols-2 gap-3 mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-300 mb-1">Name</label>
                     <Input
@@ -1004,10 +1067,10 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
                     maxSizeMB={5}
                   />
                 </div>
-                <Button 
-                  type="button" 
-                  onClick={() => removeRepresentative(index)} 
-                  variant="destructive" 
+                <Button
+                  type="button"
+                  onClick={() => removeRepresentative(index)}
+                  variant="destructive"
                   size="sm"
                   className="h-6 px-2 text-xs"
                 >
@@ -1034,7 +1097,6 @@ function StudentGovForm({ member, onSubmit, onCancel }: {
   );
 }
 
-// Club Form
 function ClubForm({ club, onSubmit, onCancel }: {
   club?: Club;
   onSubmit: (data: Partial<Club>) => void;
@@ -1060,41 +1122,30 @@ function ClubForm({ club, onSubmit, onCancel }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">Club Name</label>
-          <Input
-            value={formData.name || ''}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
-            placeholder="Drama Club"
-            required
-            className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-          />
-        </div>
-      </div>
+      <TextField
+        label="Club Name"
+        value={formData.name || ''}
+        onChange={(value) => setFormData({...formData, name: value})}
+        placeholder="Drama Club"
+        required
+      />
 
-      <div>
-        <label className="block text-sm font-medium text-white mb-2">Description</label>
-        <Textarea
-          value={formData.description || ''}
-          onChange={(e) => setFormData({...formData, description: e.target.value})}
-          placeholder="Club description"
-          rows={3}
-          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-        />
-      </div>
+      <TextAreaField
+        label="Description"
+        value={formData.description || ''}
+        onChange={(value) => setFormData({...formData, description: value})}
+        placeholder="Club description"
+        rows={3}
+      />
 
-      <div>
-        <label className="block text-sm font-medium text-white mb-2">Contact Email</label>
-        <Input
-          type="email"
-          value={formData.contactEmail || ''}
-          onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
-          placeholder="master@oogway.com"
-          required
-          className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 text-white placeholder-gray-400"
-        />
-      </div>
+      <TextField
+        label="Contact Email"
+        type="email"
+        value={formData.contactEmail || ''}
+        onChange={(value) => setFormData({...formData, contactEmail: value})}
+        placeholder="master@oogway.com"
+        required
+      />
 
       <div>
         <FileUpload
@@ -1132,14 +1183,10 @@ function ClubForm({ club, onSubmit, onCancel }: {
   );
 }
 
-
-
 export default function AdminMongoDB() {
-  // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // State for managing data
   const [products, setProducts] = useState<Product[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [videos, setVideos] = useState<VideoPost[]>([]);
@@ -1149,9 +1196,8 @@ export default function AdminMongoDB() {
   const [formSubmissions, setFormSubmissions] = useState<FormSubmission[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
 
-  // Loading and error states
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);  // State for modals
+  const [error, setError] = useState<string | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -1160,27 +1206,22 @@ export default function AdminMongoDB() {
   const [showStudentGovModal, setShowStudentGovModal] = useState(false);
   const [showClubModal, setShowClubModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  
-  // Form submissions filtering and search
+
   const [submissionEventFilter, setSubmissionEventFilter] = useState<string>('all');
   const [submissionSearch, setSubmissionSearch] = useState<string>('');
   const [submissionStatusFilter, setSubmissionStatusFilter] = useState<'all' | 'pending' | 'approved_paid' | 'approved_unpaid' | 'rejected'>('all');
   const [submissionSortOrder, setSubmissionSortOrder] = useState<'newest' | 'oldest'>('newest');
 
-  // Pagination states
   const [submissionDisplayCount, setSubmissionDisplayCount] = useState(10);
-  
-  // Rejection modal states
+
   const [rejectionSubmissionId, setRejectionSubmissionId] = useState<string>('');
   const [rejectionReason, setRejectionReason] = useState<string>('');
-  
-  // Submission detail modal states
+
   const [showSubmissionDetailModal, setShowSubmissionDetailModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
 
   const [, setLocation] = useLocation();
 
-  // Tab persistence
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('admin-active-tab') || 'products';
   });
@@ -1190,7 +1231,6 @@ export default function AdminMongoDB() {
     localStorage.setItem('admin-active-tab', value);
   };
 
-  // Check authentication status on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -1209,7 +1249,6 @@ export default function AdminMongoDB() {
     checkAuth();
   }, []);
 
-  // Fetch all data on component mount
   useEffect(() => {
     if (!isAuthenticated) {
       setLoading(false);
@@ -1260,10 +1299,9 @@ export default function AdminMongoDB() {
     fetchAllData();
   }, [isAuthenticated]);
 
-  // Logout handler
   const handleLogout = async () => {
     try {
-      await fetch('/api/admin/logout', { 
+      await fetch('/api/admin/logout', {
         method: 'POST',
         credentials: 'include'
       });
@@ -1273,13 +1311,11 @@ export default function AdminMongoDB() {
     }
   };
 
-  // View submission details handler
   const handleViewSubmissionDetails = (submission: FormSubmission) => {
     setSelectedSubmission(submission);
     setShowSubmissionDetailModal(true);
   };
 
-  // CRUD handlers
   const handleAddProduct = async (productData: Partial<Product>) => {
     try {
       const newProduct = await createProduct(productData);
@@ -1294,7 +1330,7 @@ export default function AdminMongoDB() {
 
   const handleUpdateProduct = async (productData: Partial<Product>) => {
     if (!editingItem?._id) return;
-    
+
     try {
       const updatedProduct = await updateProduct(editingItem._id, productData);
       setProducts(products.map(p => p._id === editingItem._id ? updatedProduct : p));
@@ -1332,7 +1368,7 @@ export default function AdminMongoDB() {
 
   const handleUpdateEvent = async (eventData: Partial<Event>) => {
     if (!editingItem?._id) return;
-    
+
     try {
       const updatedEvent = await updateEvent(editingItem._id, eventData);
       setEvents(events.map(e => e._id === editingItem._id ? updatedEvent : e));
@@ -1370,7 +1406,7 @@ export default function AdminMongoDB() {
 
   const handleUpdateVideo = async (videoData: Partial<VideoPost>) => {
     if (!editingItem?._id) return;
-    
+
     try {
       const updatedVideo = await updateVideo(editingItem._id, videoData);
       setVideos(videos.map(v => v._id === editingItem._id ? updatedVideo : v));
@@ -1410,7 +1446,7 @@ export default function AdminMongoDB() {
 
   const handleUpdateAnnouncement = async (announcementData: Partial<Announcement>) => {
     if (!editingItem?._id) return;
-    
+
     try {
       const updatedAnnouncement = await updateAnnouncement(editingItem._id, announcementData);
       setAnnouncements(announcements.map(a => a._id === editingItem._id ? updatedAnnouncement : a));
@@ -1441,7 +1477,6 @@ export default function AdminMongoDB() {
     }
   };
 
-  // Student Government CRUD handlers
   const handleAddStudentGov = async (memberData: Partial<StudentGovPosition>) => {
     try {
       const newPosition = await createStudentGovPosition(memberData);
@@ -1456,7 +1491,7 @@ export default function AdminMongoDB() {
 
   const handleUpdateStudentGov = async (memberData: Partial<StudentGovPosition>) => {
     if (!editingItem?._id) return;
-    
+
     try {
       const updatedPosition = await updateStudentGovPosition(editingItem._id, memberData);
       setStudentGov(studentGov.map(s => s._id === editingItem._id ? updatedPosition : s));
@@ -1488,7 +1523,6 @@ export default function AdminMongoDB() {
     }
   };
 
-  // Club CRUD handlers
   const handleAddClub = async (clubData: Partial<Club>) => {
     try {
       const newClub = await createClub(clubData);
@@ -1503,7 +1537,7 @@ export default function AdminMongoDB() {
 
   const handleUpdateClub = async (clubData: Partial<Club>) => {
     if (!editingItem?._id) return;
-    
+
     try {
       const updatedClub = await updateClub(editingItem._id, clubData);
       setClubs(clubs.map(c => c._id === editingItem._id ? updatedClub : c));
@@ -1535,16 +1569,11 @@ export default function AdminMongoDB() {
     }
   };
 
-
-  // Filter form submissions based on search and filter criteria
   const filteredFormSubmissions = formSubmissions
     .filter(submission => {
-      // Filter by event (handle both populated and non-populated eventId)
-      const eventIdStr = typeof submission.eventId === 'object' && submission.eventId ?
-        (submission.eventId as any)._id : submission.eventId;
+      const eventIdStr = resolveEventId(submission.eventId);
       const eventMatch = submissionEventFilter === 'all' || eventIdStr === submissionEventFilter;
 
-      // Filter by status (with paid/unpaid distinction for approved)
       let statusMatch = false;
       if (submissionStatusFilter === 'all') {
         statusMatch = true;
@@ -1558,7 +1587,6 @@ export default function AdminMongoDB() {
         statusMatch = submission.status === 'approved';
       }
 
-      // Filter by search term (student name)
       const searchMatch = submissionSearch === '' ||
         submission.studentName.toLowerCase().includes(submissionSearch.toLowerCase());
 
@@ -1570,16 +1598,9 @@ export default function AdminMongoDB() {
       return submissionSortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     });
 
-  // Send email notification (This would typically be done server-side)
   const sendEmailNotification = async (to: string, subject: string, message: string) => {
-    console.log(`Sending email to ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log(`Message: ${message}`);
-    
-    // In a real implementation, this would call an API endpoint to send the email
-    // For now, we'll just simulate it with a delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     return { success: true };
   };
 
@@ -1589,24 +1610,24 @@ export default function AdminMongoDB() {
       if (!submission) {
         throw new Error('Submission not found');
       }
-      
-      // Get the event details for the email
-      const event = events.find(e => e._id === submission.eventId);
-      
-      // Update the submission status
-      await updateFormSubmission(id, { 
-        status: 'approved', 
-        reviewedAt: new Date(), 
-        reviewedBy: 'Admin' 
+
+      const event = events.find(e => e._id === resolveEventId(submission.eventId));
+
+      await updateFormSubmission(id, {
+        status: 'approved',
+        reviewedAt: new Date(),
+        reviewedBy: 'Admin'
       });
-      
-      // Update local state
-      setFormSubmissions(formSubmissions.map(s => 
+
+      setFormSubmissions(formSubmissions.map(s =>
         s._id === id ? { ...s, status: 'approved', reviewedAt: new Date(), reviewedBy: 'Admin' } : s
       ));
-      
-      // Send email notification
+
       if (event) {
+        const ticketPrice = submission.ticketType?.price ?? getLowestTicketPrice(event);
+        const totalAmount = typeof submission.totalAmount === 'number'
+          ? submission.totalAmount
+          : submission.quantity * ticketPrice;
         const emailSubject = `Your Request for ${event.title} has been Approved`;
         const emailMessage = `
 Dear ${submission.studentName},
@@ -1618,63 +1639,20 @@ Event Details:
 - Time: ${event.time}
 - Location: ${event.location}
 
-You can now proceed to make your payment for ${submission.quantity} ticket(s) at $${event.price.toFixed(2)} each.
-Total Amount: $${(submission.quantity * event.price).toFixed(2)}
+You can now proceed to make your payment for ${submission.quantity} ticket(s) at $${ticketPrice.toFixed(2)} each.
+Total Amount: $${totalAmount.toFixed(2)}
 
 Please proceed to the payment section on our website to complete your purchase.
 
 Thank you,
 ESHS ASB Team
         `;
-        
+
         await sendEmailNotification(submission.email, emailSubject, emailMessage);
       }
     } catch (err) {
       console.error('Failed to approve submission:', err);
       alert('Failed to approve submission. Please try again.');
-    }
-  };
-  const handleRejectSubmission = async (id: string) => {
-    try {
-      const submission = formSubmissions.find(s => s._id === id);
-      if (!submission) {
-        throw new Error('Submission not found');
-      }
-      
-      // Get the event details for the email
-      const event = events.find(e => e._id === submission.eventId);
-      
-      // Update the submission status
-      await updateFormSubmission(id, { 
-        status: 'rejected', 
-        reviewedAt: new Date(), 
-        reviewedBy: 'Admin' 
-      });
-      
-      // Update local state
-      setFormSubmissions(formSubmissions.map(s => 
-        s._id === id ? { ...s, status: 'rejected', reviewedAt: new Date(), reviewedBy: 'Admin' } : s
-      ));
-      
-      // Send email notification
-      if (event) {
-        const emailSubject = `Your Request for ${event.title} has been Declined`;
-        const emailMessage = `
-Dear ${submission.studentName},
-
-We regret to inform you that your request to attend ${event.title} has been declined.
-
-If you would like more information about this decision, please contact the ASB office.
-
-Thank you,
-ESHS ASB Team
-        `;
-        
-        await sendEmailNotification(submission.email, emailSubject, emailMessage);
-      }
-    } catch (err) {
-      console.error('Failed to reject submission:', err);
-      alert('Failed to reject submission. Please try again.');
     }
   };
 
@@ -1686,38 +1664,30 @@ ESHS ASB Team
 
   const confirmRejection = async () => {
     if (!rejectionReason.trim()) return;
-    
+
     try {
       const submission = formSubmissions.find(s => s._id === rejectionSubmissionId);
       if (!submission) {
         throw new Error('Submission not found');
       }
-      
-      // Get the event details for the email
-      const event = events.find(e => e._id === submission.eventId);
-      
-      // Update the submission status with rejection reason
-      await updateFormSubmission(rejectionSubmissionId, { 
-        status: 'rejected', 
-        reviewedAt: new Date(), 
+
+      await updateFormSubmission(rejectionSubmissionId, {
+        status: 'rejected',
+        reviewedAt: new Date(),
         reviewedBy: 'Admin',
         rejectionReason: rejectionReason
       });
-      
-      // Update local state
-      setFormSubmissions(formSubmissions.map(s => 
-        s._id === rejectionSubmissionId ? { 
-          ...s, 
-          status: 'rejected', 
-          reviewedAt: new Date(), 
+
+      setFormSubmissions(formSubmissions.map(s =>
+        s._id === rejectionSubmissionId ? {
+          ...s,
+          status: 'rejected',
+          reviewedAt: new Date(),
           reviewedBy: 'Admin',
           rejectionReason: rejectionReason
         } : s
       ));
-      
-      // Email notification is handled by the server
 
-      // Close modal and reset states
       setShowRejectionModal(false);
       setRejectionSubmissionId('');
       setRejectionReason('');
@@ -1736,9 +1706,6 @@ ESHS ASB Team
       case 'event':
         setShowEventModal(true);
         break;
-      case 'video':
-        // Add logic for showing video edit modal
-        break;
     }
   };
 
@@ -1749,16 +1716,15 @@ ESHS ASB Team
   };
 
   const handleBackClick = () => {
-    sessionStorage.setItem("came-from-internal", "true"); setLocation("/");
+    sessionStorage.setItem("came-from-internal", "true");
+    setLocation("/");
   };
-  // Product form submission handler
+
   const handleProductSubmit = async (productData: Partial<Product>) => {
     try {
       if (editingItem) {
-        // Update existing product
         await handleUpdateProduct(productData);
       } else {
-        // Create new product
         await handleAddProduct(productData);
       }
     } catch (err) {
@@ -1766,15 +1732,12 @@ ESHS ASB Team
       alert('Failed to save product. Please try again.');
     }
   };
-  
-  // Event form submission handler
+
   const handleEventSubmit = async (eventData: Partial<Event>) => {
     try {
       if (editingItem) {
-        // Update existing event
         await handleUpdateEvent(eventData);
       } else {
-        // Create new event
         await handleAddEvent(eventData);
       }
     } catch (err) {
@@ -1782,15 +1745,12 @@ ESHS ASB Team
       alert('Failed to save event. Please try again.');
     }
   };
-  
-  // Video form submission handler
+
   const handleVideoSubmit = async (videoData: Partial<VideoPost>) => {
     try {
       if (editingItem) {
-        // Update existing video
         await handleUpdateVideo(videoData);
       } else {
-        // Create new video
         await handleAddVideo(videoData);
       }
     } catch (err) {
@@ -1799,20 +1759,10 @@ ESHS ASB Team
     }
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen relative">
-        <div className="fixed inset-0 w-full h-full overflow-hidden -z-10">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto transform -translate-x-1/2 -translate-y-1/2 object-cover"
-          >
-          </video>
-        </div>
+        <BackgroundVideo />
         <div className="relative z-10 min-h-screen flex items-center justify-center">
           <div className="text-white text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
@@ -1823,20 +1773,10 @@ ESHS ASB Team
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="min-h-screen relative">
-        <div className="fixed inset-0 w-full h-full overflow-hidden -z-10">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto transform -translate-x-1/2 -translate-y-1/2 object-cover"
-          >
-          </video>
-        </div>
+        <BackgroundVideo />
         <div className="relative z-10 min-h-screen flex items-center justify-center">
           <div className="text-white text-center">
             <p className="text-xl text-red-400 mb-4">{error}</p>
@@ -1849,7 +1789,6 @@ ESHS ASB Team
     );
   }
 
-  // Show loading state while checking authentication
   if (checkingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
@@ -1858,37 +1797,22 @@ ESHS ASB Team
     );
   }
 
-  // Show login form if not authenticated
   if (!isAuthenticated) {
     return <AdminAuth onAuthenticated={() => setIsAuthenticated(true)} />;
   }
 
   return (
     <div className="min-h-screen relative">
-      {/* Background Video */}
-      <div className="fixed inset-0 w-full h-full overflow-hidden -z-10">
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto transform -translate-x-1/2 -translate-y-1/2 object-cover"
-        >
-        </video>
-      </div>
+      <BackgroundVideo />
 
-      {/* Overlay to darken the background video */}
-
-      {/* Main content */}
       <div className="relative z-10 min-h-screen">
         <main className="container mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+            <div className="flex items-center min-w-0">
               <Button
                 variant="ghost"
                 onClick={handleBackClick}
-                className="text-white/90 hover:text-white p-2 mr-4 bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-lg hover:bg-white/10 transition-all duration-300 flex items-center space-x-2"
+                className="text-white/90 hover:text-white p-2 mr-3 md:mr-4 min-h-11 bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-lg hover:bg-white/10 transition-all duration-300 flex items-center space-x-2"
               >
                 <svg
                   className="w-5 h-5"
@@ -1905,20 +1829,19 @@ ESHS ASB Team
                 </svg>
                 <span>Back</span>
               </Button>
-              <h1 className="font-bold text-2xl md:text-3xl text-white tracking-tight">
+              <h1 className="font-bold text-xl md:text-3xl text-white tracking-tight break-words min-w-0">
                 Admin Dashboard
               </h1>
             </div>
             <Button
               variant="ghost"
               onClick={handleLogout}
-              className="text-white/90 hover:text-white p-2 bg-red-500/20 backdrop-blur-xl border border-red-500/30 shadow-2xl rounded-lg hover:bg-red-500/30 transition-all duration-300 flex items-center space-x-2"
+              className="text-white/90 hover:text-white p-2 min-h-11 bg-red-500/20 backdrop-blur-xl border border-red-500/30 shadow-2xl rounded-lg hover:bg-red-500/30 transition-all duration-300 flex items-center space-x-2"
             >
               <LogOut className="w-4 h-4" />
               <span>Logout</span>
             </Button>
           </div>
-          {/* Stats Overview */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-6 mb-4 md:mb-8">
             <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-3 md:p-6">
               <div className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2">
@@ -1951,38 +1874,37 @@ ESHS ASB Team
               </div>
               <div className="text-xl md:text-2xl font-bold text-white">{formSubmissions.length}</div>
             </div>
-          </div>          {/* Main Tabs */}
+          </div>
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-6 bg-white/[0.02] backdrop-blur-3xl border border-white/10">
-              <TabsTrigger value="products" className="text-white">
-                <Package className="h-4 w-4 md:hidden" />
-                <span className="hidden md:inline">Merch</span>
+            <TabsList className="flex h-auto w-full justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden gap-1 md:grid md:grid-cols-6 bg-white/[0.02] backdrop-blur-3xl border border-white/10">
+              <TabsTrigger value="products" className={TAB_TRIGGER_CLASS}>
+                <Package className="h-4 w-4" />
+                <span>Merch</span>
               </TabsTrigger>
-              <TabsTrigger value="events" className="text-white">
-                <Calendar className="h-4 w-4 md:hidden" />
-                <span className="hidden md:inline">Activities</span>
+              <TabsTrigger value="events" className={TAB_TRIGGER_CLASS}>
+                <Calendar className="h-4 w-4" />
+                <span>Activities</span>
               </TabsTrigger>
-              <TabsTrigger value="orders" className="text-white">
-                <DollarSign className="h-4 w-4 md:hidden" />
-                <span className="hidden md:inline">Orders</span>
+              <TabsTrigger value="orders" className={TAB_TRIGGER_CLASS}>
+                <DollarSign className="h-4 w-4" />
+                <span>Orders</span>
               </TabsTrigger>
-              <TabsTrigger value="submissions" className="text-white">
-                <FileText className="h-4 w-4 md:hidden" />
-                <span className="hidden md:inline">Forms</span>
+              <TabsTrigger value="submissions" className={TAB_TRIGGER_CLASS}>
+                <FileText className="h-4 w-4" />
+                <span>Forms</span>
               </TabsTrigger>
-              <TabsTrigger value="information" className="text-white">
-                <Info className="h-4 w-4 md:hidden" />
-                <span className="hidden md:inline">Info</span>
+              <TabsTrigger value="information" className={TAB_TRIGGER_CLASS}>
+                <Info className="h-4 w-4" />
+                <span>Info</span>
               </TabsTrigger>
-              <TabsTrigger value="birds-eye-view" className="text-white">
-                <Eye className="h-4 w-4 md:hidden" />
-                <span className="hidden md:inline">Theater</span>
+              <TabsTrigger value="birds-eye-view" className={TAB_TRIGGER_CLASS}>
+                <Eye className="h-4 w-4" />
+                <span>Theater</span>
               </TabsTrigger>
             </TabsList>
 
-            {/* Products Tab */}
             <TabsContent value="products" className="space-y-6">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-wrap justify-between items-center gap-3">
                 <h2 className="text-xl font-semibold text-white">Products</h2>
                 <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
                   <DialogTrigger asChild>
@@ -1991,11 +1913,11 @@ ESHS ASB Team
                       Add Product
                     </PrimaryButton>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+                  <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
                     <DialogHeader>
                       <DialogTitle className="text-white">{editingItem ? 'Edit Product' : 'Add Product'}</DialogTitle>
                     </DialogHeader>
-                    <ProductForm 
+                    <ProductForm
                       product={editingItem}
                       onSubmit={handleProductSubmit}
                       onCancel={handleCancelEdit}
@@ -2007,15 +1929,15 @@ ESHS ASB Team
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {products.map((product) => (
                   <div key={product._id} className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-white text-lg font-semibold">{product.name}</h3>
+                    <div className="flex justify-between items-start gap-2 mb-4">
+                      <h3 className="text-white text-lg font-semibold break-words min-w-0">{product.name}</h3>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => handleEdit('product', product)}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="destructive" 
+                        <Button
+                          size="sm"
+                          variant="destructive"
                           onClick={() => handleDeleteProduct(product._id)}
                           className="bg-red-600/20 hover:bg-red-600/40 text-red-200 border-red-600/30"
                         >
@@ -2027,8 +1949,7 @@ ESHS ASB Team
                       <p><strong>Price:</strong> ${product.price}</p>
                       <p><strong>Category:</strong> {product.category}</p>
                       <p><strong>Organization:</strong> {product.organization}</p>
-                      
-                      {/* Display stock based on category */}
+
                       {product.category === 'Apparel' ? (
                         <div>
                           <p><strong>Size & Stock:</strong></p>
@@ -2053,9 +1974,8 @@ ESHS ASB Team
               </div>
             </TabsContent>
 
-            {/* Events Tab */}
             <TabsContent value="events" className="space-y-6">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-wrap justify-between items-center gap-3">
                 <h2 className="text-xl font-semibold text-white">Events</h2>
                 <Dialog open={showEventModal} onOpenChange={setShowEventModal}>
                   <DialogTrigger asChild>
@@ -2064,11 +1984,11 @@ ESHS ASB Team
                       Add Event
                     </PrimaryButton>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+                  <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
                     <DialogHeader>
                       <DialogTitle className="text-white">{editingItem ? 'Edit Event' : 'Add Event'}</DialogTitle>
                     </DialogHeader>
-                    <EventForm 
+                    <EventForm
                       event={editingItem}
                       onSubmit={handleEventSubmit}
                       onCancel={handleCancelEdit}
@@ -2080,15 +2000,15 @@ ESHS ASB Team
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {events.map((event) => (
                   <div key={event._id} className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-white text-lg font-semibold">{event.title}</h3>
+                    <div className="flex justify-between items-start gap-2 mb-4">
+                      <h3 className="text-white text-lg font-semibold break-words min-w-0">{event.title}</h3>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => handleEdit('event', event)}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="destructive" 
+                        <Button
+                          size="sm"
+                          variant="destructive"
                           onClick={() => handleDeleteEvent(event._id)}
                           className="bg-red-600/20 hover:bg-red-600/40 text-red-200 border-red-600/30"
                         >
@@ -2118,7 +2038,6 @@ ESHS ASB Team
               </div>
             </TabsContent>
 
-            {/* Orders Tab */}
             <TabsContent value="orders" className="space-y-6">
               <OrdersManagement
                 purchases={purchases}
@@ -2132,9 +2051,7 @@ ESHS ASB Team
               />
             </TabsContent>
 
-            {/* Form Submissions Tab */}
             <TabsContent value="submissions" className="space-y-6">
-              {/* Filter and Search Controls */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Filter by Event</label>
@@ -2179,7 +2096,6 @@ ESHS ASB Team
                 </div>
               </div>
 
-              {/* Single Submissions List */}
               <Card className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
                 <CardHeader className="pb-4">
                   <div className="flex justify-between items-center flex-wrap gap-3">
@@ -2203,54 +2119,35 @@ ESHS ASB Team
                       onClick={() => setSubmissionSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
                       className="bg-white/5 hover:bg-white/10 text-white border-white/20"
                     >
-                      {submissionSortOrder === 'newest' ? '↓ Newest First' : '↑ Oldest First'}
+                      {submissionSortOrder === 'newest'
+                        ? <><ArrowDown className="w-4 h-4 mr-1" /> Newest First</>
+                        : <><ArrowUp className="w-4 h-4 mr-1" /> Oldest First</>}
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {filteredFormSubmissions.slice(0, submissionDisplayCount).map((submission) => {
-                      // Handle both populated and non-populated eventId
-                      const eventIdStr = typeof submission.eventId === 'object' && submission.eventId ?
-                        (submission.eventId as any)._id : submission.eventId;
+                      const eventIdStr = resolveEventId(submission.eventId);
                       const relatedEvent = events.find(e => e._id === eventIdStr) ||
                         (typeof submission.eventId === 'object' ? submission.eventId as any : null);
 
-                      // Determine status color
-                      const getStatusColor = () => {
-                        switch (submission.status) {
-                          case 'pending': return "bg-yellow-600/20 border-yellow-600 text-yellow-200";
-                          case 'approved': return "bg-orange-500/20 border-orange-500 text-orange-200";
-                          case 'paid': return "bg-green-600/20 border-green-600 text-green-200";
-                          case 'rejected': return "bg-red-600/20 border-red-600 text-red-200";
-                          default: return "bg-gray-600/20 border-gray-600 text-gray-200";
-                        }
-                      };
-
-                      const getStatusLabel = () => {
-                        switch (submission.status) {
-                          case 'approved': return 'Approved (Unpaid)';
-                          case 'paid': return 'Paid';
-                          default: return submission.status;
-                        }
-                      };
-
                       return (
                         <div key={submission._id} className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-lg rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h4 className="text-white font-semibold text-lg">{submission.studentName}</h4>
-                              <p className="text-sm text-gray-400">{submission.email}</p>
+                          <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
+                            <div className="min-w-0">
+                              <h4 className="text-white font-semibold text-lg break-words">{submission.studentName}</h4>
+                              <p className="text-sm text-gray-400 break-words">{submission.email}</p>
                             </div>
-                            <Badge className={getStatusColor()}>
-                              {getStatusLabel()}
+                            <Badge className={`${getSubmissionStatusColor(submission.status)} flex-shrink-0`}>
+                              {getSubmissionStatusLabel(submission.status)}
                             </Badge>
                           </div>
 
                           {relatedEvent && (
                             <div className="bg-white/10 rounded-lg p-2 mb-3">
-                              <p className="text-white font-medium">{relatedEvent.title}</p>
-                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-300">
+                              <p className="text-white font-medium break-words">{relatedEvent.title}</p>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-300">
                                 <span>{new Date(relatedEvent.date).toLocaleDateString()}</span>
                                 <span>{relatedEvent.time}</span>
                                 <span>{relatedEvent.location}</span>
@@ -2274,15 +2171,14 @@ ESHS ASB Team
                             )}
                           </div>
 
-                          {/* Uploaded Forms */}
                           {submission.forms && submission.forms.length > 0 && (
                             <div className="mb-3">
                               <p className="text-sm font-medium text-white mb-1">Uploaded Forms:</p>
                               <div className="flex flex-wrap gap-2">
                                 {submission.forms.map((form, index) => (
-                                  <div key={index} className="flex items-center bg-white/10 px-3 py-1 rounded-full text-xs text-white">
-                                    <FileText className="w-3 h-3 mr-1" />
-                                    {form.fileName}
+                                  <div key={index} className="flex items-center max-w-full bg-white/10 px-3 py-1 rounded-full text-xs text-white">
+                                    <FileText className="w-3 h-3 mr-1 flex-shrink-0" />
+                                    <span className="truncate">{form.fileName}</span>
                                     <Button
                                       size="sm"
                                       variant="ghost"
@@ -2297,24 +2193,21 @@ ESHS ASB Team
                             </div>
                           )}
 
-                          {/* Notes */}
                           {submission.notes && (
                             <div className="bg-white/5 rounded p-2 mb-3">
                               <p className="text-xs text-gray-400">Notes:</p>
-                              <p className="text-sm text-white">{submission.notes}</p>
+                              <p className="text-sm text-white break-words">{submission.notes}</p>
                             </div>
                           )}
 
-                          {/* Rejection Reason */}
                           {submission.status === 'rejected' && submission.rejectionReason && (
                             <div className="bg-red-500/10 rounded p-2 mb-3">
                               <p className="text-xs text-red-400">Rejection Reason:</p>
-                              <p className="text-sm text-red-200">{submission.rejectionReason}</p>
+                              <p className="text-sm text-red-200 break-words">{submission.rejectionReason}</p>
                             </div>
                           )}
 
-                          {/* Action Buttons */}
-                          <div className="mt-3 flex justify-end space-x-2">
+                          <div className="mt-3 flex flex-wrap justify-end gap-2">
                             <Button
                               size="sm"
                               variant="ghost"
@@ -2348,7 +2241,6 @@ ESHS ASB Team
                       );
                     })}
 
-                    {/* Empty State */}
                     {filteredFormSubmissions.length === 0 && (
                       <div className="text-center py-8 text-gray-400">
                         <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500 opacity-30" />
@@ -2357,7 +2249,6 @@ ESHS ASB Team
                       </div>
                     )}
 
-                    {/* Load More button */}
                     {filteredFormSubmissions.length > submissionDisplayCount && (
                       <div className="text-center py-4">
                         <Button
@@ -2373,16 +2264,15 @@ ESHS ASB Team
                 </CardContent>
               </Card>
             </TabsContent>
-            
-            {/* Information Tab */}
+
             <TabsContent value="information" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">                {/* Student Government */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
                   <CardHeader>
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-white">Student Government</CardTitle>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => {
                           setEditingItem(null);
@@ -2396,16 +2286,16 @@ ESHS ASB Team
                   <CardContent>
                     <div className="space-y-4 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
                       {studentGov.map((position) => (
-                        <div key={position._id} className="flex justify-between items-center">
-                          <div>
-                            <h4 className="text-white font-semibold">{position.position}</h4>
-                            <p className="text-sm text-gray-400">{position.gradeLevel}</p>
+                        <div key={position._id} className="flex justify-between items-center gap-2">
+                          <div className="min-w-0">
+                            <h4 className="text-white font-semibold break-words">{position.position}</h4>
+                            <p className="text-sm text-gray-400 break-words">{position.gradeLevel}</p>
                           </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="h-8 w-8 p-0"
+                          <div className="flex gap-2 flex-shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={ICON_BUTTON_CLASS}
                               onClick={() => {
                                 setEditingItem(position);
                                 setShowStudentGovModal(true);
@@ -2413,10 +2303,10 @@ ESHS ASB Team
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="destructive" 
-                              className="h-8 w-8 p-0"
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className={ICON_BUTTON_CLASS}
                               onClick={() => handleDeleteStudentGov(position._id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -2427,13 +2317,12 @@ ESHS ASB Team
                     </div>
                   </CardContent>
                 </Card>
-                  {/* Clubs */}
                 <Card className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
                   <CardHeader>
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-white">Clubs</CardTitle>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => {
                           setEditingItem(null);
@@ -2447,16 +2336,16 @@ ESHS ASB Team
                   <CardContent>
                     <div className="space-y-4 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
                       {clubs.map((club) => (
-                        <div key={club._id} className="flex justify-between items-center">
-                          <div>
-                            <h4 className="text-white font-semibold">{club.name}</h4>
-                            <p className="text-sm text-gray-400">{club.category}</p>
+                        <div key={club._id} className="flex justify-between items-center gap-2">
+                          <div className="min-w-0">
+                            <h4 className="text-white font-semibold break-words">{club.name}</h4>
+                            <p className="text-sm text-gray-400 break-words">{club.contactEmail}</p>
                           </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="h-8 w-8 p-0"
+                          <div className="flex gap-2 flex-shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={ICON_BUTTON_CLASS}
                               onClick={() => {
                                 setEditingItem(club);
                                 setShowClubModal(true);
@@ -2464,10 +2353,10 @@ ESHS ASB Team
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="destructive" 
-                              className="h-8 w-8 p-0"
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className={ICON_BUTTON_CLASS}
                               onClick={() => handleDeleteClub(club._id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -2480,7 +2369,6 @@ ESHS ASB Team
                 </Card>
               </div>
 
-              {/* Announcements Management */}
               <Card className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
                 <CardHeader>
                   <div className="flex justify-between items-center">
@@ -2491,11 +2379,11 @@ ESHS ASB Team
                           <PlusCircle className="w-4 h-4 mr-1" /> Add Announcement
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+                      <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
                         <DialogHeader>
                           <DialogTitle className="text-white">{editingItem ? 'Edit Announcement' : 'Add Announcement'}</DialogTitle>
                         </DialogHeader>
-                        <AnnouncementForm 
+                        <AnnouncementForm
                           announcement={editingItem}
                           onSubmit={handleAnnouncementSubmit}
                           onCancel={() => {
@@ -2511,11 +2399,11 @@ ESHS ASB Team
                   <div className="space-y-4 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
                     {announcements.map((announcement) => (
                       <div key={announcement._id} className="flex justify-between items-start p-3 bg-white/5 rounded-lg border border-white/10">
-                        <div className="flex-1">
-                          <h4 className="text-white font-semibold text-sm">{announcement.title}</h4>
-                          <p className="text-gray-400 text-xs mt-1">
-                            {announcement.content.length > 80 
-                              ? `${announcement.content.substring(0, 80)}...` 
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-white font-semibold text-sm break-words">{announcement.title}</h4>
+                          <p className="text-gray-400 text-xs mt-1 break-words">
+                            {announcement.content.length > 80
+                              ? `${announcement.content.substring(0, 80)}...`
                               : announcement.content}
                           </p>
                           <div className="flex items-center gap-2 mt-2">
@@ -2532,10 +2420,10 @@ ESHS ASB Team
                           </div>
                         </div>
                         <div className="flex gap-1 ml-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="h-8 w-8 p-0"
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={ICON_BUTTON_CLASS}
                             onClick={() => {
                               setEditingItem(announcement);
                               setShowAnnouncementModal(true);
@@ -2543,10 +2431,10 @@ ESHS ASB Team
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive" 
-                            className="h-8 w-8 p-0"
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className={ICON_BUTTON_CLASS}
                             onClick={() => handleDeleteAnnouncement(announcement._id)}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -2554,7 +2442,7 @@ ESHS ASB Team
                         </div>
                       </div>
                     ))}
-                    
+
                     {announcements.length === 0 && (
                       <div className="text-center py-8 text-gray-400">
                         <Info className="w-12 h-12 mx-auto mb-2 text-gray-500 opacity-30" />
@@ -2565,9 +2453,8 @@ ESHS ASB Team
                 </CardContent>
               </Card>
             </TabsContent>
-              {/* Birds Eye View Tab */}
             <TabsContent value="birds-eye-view" className="space-y-6">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-wrap justify-between items-center gap-3">
                 <h2 className="text-xl font-semibold text-white">Birds Eye View Videos</h2>
                 <Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
                   <DialogTrigger asChild>
@@ -2576,7 +2463,7 @@ ESHS ASB Team
                       Add Video
                     </PrimaryButton>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+                  <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
                     <DialogHeader>
                       <DialogTitle className="text-white">{editingItem ? 'Edit Video' : 'Add New Video'}</DialogTitle>
                     </DialogHeader>
@@ -2596,16 +2483,16 @@ ESHS ASB Team
                 {videos.map((video) => (
                   <div key={video._id} className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl overflow-hidden">
                     <div className="aspect-video relative">
-                      <img 
-                        src={video.thumbnailUrl} 
+                      <img
+                        src={video.thumbnailUrl}
                         alt={video.title}
                         className="w-full h-full object-cover"
-                      />                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                        <Button 
-                          variant="outline" 
+                      />
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <Button
+                          variant="outline"
                           className="rounded-full"
                           onClick={() => {
-                            // Create a modal with embedded YouTube video
                             const modal = document.createElement('div');
                             modal.className = 'fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4';
                             modal.onclick = (e) => {
@@ -2613,8 +2500,7 @@ ESHS ASB Team
                                 document.body.removeChild(modal);
                               }
                             };
-                            
-                            // Convert YouTube watch URL to embed URL if needed
+
                             let embedUrl = video.videoUrl;
                             if (embedUrl.includes('youtube.com/watch')) {
                               const videoId = embedUrl.split('v=')[1]?.split('&')[0];
@@ -2623,7 +2509,7 @@ ESHS ASB Team
                               const videoId = embedUrl.split('youtu.be/')[1]?.split('?')[0];
                               embedUrl = `https://www.youtube.com/embed/${videoId}`;
                             }
-                            
+
                             modal.innerHTML = `
                               <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl overflow-hidden max-w-4xl w-full">
                                 <div class="flex justify-between items-center p-4 border-b border-white/20">
@@ -2631,17 +2517,17 @@ ESHS ASB Team
                                   <button onclick="document.body.removeChild(this.closest('.fixed'))" class="text-white/60 hover:text-white text-2xl">&times;</button>
                                 </div>
                                 <div class="aspect-video">
-                                  <iframe 
-                                    src="${embedUrl}" 
-                                    frameborder="0" 
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                  <iframe
+                                    src="${embedUrl}"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowfullscreen
                                     class="w-full h-full"
                                   ></iframe>
                                 </div>
                               </div>
                             `;
-                            
+
                             document.body.appendChild(modal);
                           }}
                         >
@@ -2650,28 +2536,28 @@ ESHS ASB Team
                       </div>
                     </div>
                     <div className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-white text-lg font-semibold">{video.title}</h3>
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <h3 className="text-white text-lg font-semibold break-words min-w-0">{video.title}</h3>
                         <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => {
                               setEditingItem(video);
                               setShowVideoModal(true);
-                            }} 
-                            className="h-8 w-8 p-0"
+                            }}
+                            className={ICON_BUTTON_CLASS}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDeleteVideo(video._id)} className="h-8 w-8 p-0">
+                          <Button size="sm" variant="destructive" onClick={() => handleDeleteVideo(video._id)} className={ICON_BUTTON_CLASS}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
                       <div className="text-sm text-gray-400 mb-2">
-                        {video.description.length > 60 
-                          ? `${video.description.substring(0, 60)}...` 
+                        {video.description.length > 60
+                          ? `${video.description.substring(0, 60)}...`
                           : video.description}
                       </div>
                       <div className="flex items-center justify-between">
@@ -2686,43 +2572,16 @@ ESHS ASB Team
                 ))}
               </div>
             </TabsContent>
-            
-            {/* Content Tab */}
-            <TabsContent value="content" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-6">
-                  <h3 className="text-white text-lg font-semibold mb-4">Videos ({videos.length})</h3>
-                  <div className="space-y-2">
-                    {videos.slice(0, 3).map((video) => (
-                      <div key={video._id} className="text-sm text-gray-300">
-                        {video.title} - {video.views} views
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-6">
-                  <h3 className="text-white text-lg font-semibold mb-4">Announcements ({announcements.length})</h3>
-                  <div className="space-y-2">
-                    {announcements.slice(0, 3).map((announcement) => (
-                      <div key={announcement._id} className="text-sm text-gray-300">
-                        {announcement.title} - {announcement.priority}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>            </TabsContent>
           </Tabs>
         </main>
       </div>
-        {/* Form Rejection Modal */}
       <Dialog open={showRejectionModal} onOpenChange={setShowRejectionModal}>
-        <DialogContent className="max-w-md bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+        <DialogContent className="w-[95vw] max-w-md max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-white">Reject Form Submission</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-300">
               Please provide a reason for rejecting this form submission:
             </p>
             <Textarea
@@ -2730,11 +2589,12 @@ ESHS ASB Team
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Enter rejection reason..."
               rows={4}
+              className={GLASS_FIELD_CLASS}
             />
-            <div className="flex gap-3 justify-end">
-              <Button 
+            <div className="flex flex-wrap gap-3 justify-end">
+              <Button
                 type="button"
-                variant="outline" 
+                variant="outline"
                 onClick={() => {
                   setShowRejectionModal(false);
                   setRejectionReason('');
@@ -2743,7 +2603,7 @@ ESHS ASB Team
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 type="button"
                 variant="destructive"
                 onClick={confirmRejection}
@@ -2758,36 +2618,28 @@ ESHS ASB Team
         </DialogContent>
       </Dialog>
 
-      {/* Submission Detail Modal */}
       <Dialog open={showSubmissionDetailModal} onOpenChange={setShowSubmissionDetailModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-white">Submission Details</DialogTitle>
           </DialogHeader>
           {selectedSubmission && (
             <div className="space-y-6 text-white">
-              {/* Student Information */}
               <div className="bg-white/10 rounded-lg p-4">
                 <h3 className="text-lg font-semibold mb-3">Student Information</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="min-w-0">
                     <label className="text-sm text-gray-300">Name:</label>
-                    <p className="text-white font-medium">{selectedSubmission.studentName}</p>
+                    <p className="text-white font-medium break-words">{selectedSubmission.studentName}</p>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <label className="text-sm text-gray-300">Email:</label>
-                    <p className="text-white">{selectedSubmission.email}</p>
+                    <p className="text-white break-words">{selectedSubmission.email}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-300">Status:</label>
-                    <Badge className={
-                      selectedSubmission.status === 'approved' 
-                        ? "bg-green-600/20 border-green-600 text-green-200"
-                        : selectedSubmission.status === 'rejected'
-                        ? "bg-red-600/20 border-red-600 text-red-200"
-                        : "bg-yellow-600/20 border-yellow-600 text-yellow-200"
-                    }>
-                      {selectedSubmission.status}
+                    <Badge className={getSubmissionStatusColor(selectedSubmission.status)}>
+                      {getSubmissionStatusLabel(selectedSubmission.status)}
                     </Badge>
                   </div>
                   <div>
@@ -2797,20 +2649,18 @@ ESHS ASB Team
                 </div>
               </div>
 
-              {/* Event Information */}
               {(() => {
-                const eventIdStr = typeof selectedSubmission.eventId === 'object' && selectedSubmission.eventId ? 
-                  (selectedSubmission.eventId as any)._id : selectedSubmission.eventId;
-                const relatedEvent = events.find(e => e._id === eventIdStr) || 
+                const eventIdStr = resolveEventId(selectedSubmission.eventId);
+                const relatedEvent = events.find(e => e._id === eventIdStr) ||
                   (typeof selectedSubmission.eventId === 'object' ? selectedSubmission.eventId as any : null);
-                
+
                 return relatedEvent && (
                   <div className="bg-white/10 rounded-lg p-4">
                     <h3 className="text-lg font-semibold mb-3">Event Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="min-w-0">
                         <label className="text-sm text-gray-300">Event:</label>
-                        <p className="text-white font-medium">{relatedEvent.title}</p>
+                        <p className="text-white font-medium break-words">{relatedEvent.title}</p>
                       </div>
                       <div>
                         <label className="text-sm text-gray-300">Date:</label>
@@ -2829,26 +2679,36 @@ ESHS ASB Team
                 );
               })()}
 
-              {/* Registration Details */}
               <div className="bg-white/10 rounded-lg p-4">
                 <h3 className="text-lg font-semibold mb-3">Registration Details</h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="text-sm text-gray-300">Quantity:</label>
                     <p className="text-white font-medium">{selectedSubmission.quantity}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-300">Total Amount:</label>
-                    <p className="text-white font-medium">${selectedSubmission.totalAmount.toFixed(2)}</p>
+                    <p className="text-white font-medium">${(selectedSubmission.totalAmount || 0).toFixed(2)}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-300">Payment Status:</label>
-                    <p className="text-white">Pending</p>
+                    <p className="text-white">
+                      {selectedSubmission.status === 'paid' || selectedSubmission.purchaseStatus === 'completed' ? 'Paid' : 'Pending'}
+                    </p>
+                    {selectedSubmission.paymentDate && (
+                      <p className="text-xs text-gray-300">
+                        Paid on {new Date(selectedSubmission.paymentDate).toLocaleDateString()}
+                      </p>
+                    )}
+                    {selectedSubmission.transactionId && (
+                      <p className="text-xs text-gray-300 break-words">
+                        Transaction: {selectedSubmission.transactionId}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Uploaded Forms */}
               {selectedSubmission.forms && selectedSubmission.forms.length > 0 && (
                 <div className="bg-white/10 rounded-lg p-4">
                   <h3 className="text-lg font-semibold mb-3">Uploaded Forms</h3>
@@ -2857,7 +2717,7 @@ ESHS ASB Team
                       <div key={index} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
                         <div className="flex items-center">
                           <FileText className="w-4 h-4 mr-2 text-blue-400" />
-                          <span className="text-white">{form.fileName}</span>
+                          <span className="text-white break-words">{form.fileName}</span>
                         </div>
                         <Button
                           size="sm"
@@ -2874,23 +2734,20 @@ ESHS ASB Team
                 </div>
               )}
 
-              {/* Notes */}
               {selectedSubmission.notes && (
                 <div className="bg-white/10 rounded-lg p-4">
                   <h3 className="text-lg font-semibold mb-3">Additional Notes</h3>
-                  <p className="text-white">{selectedSubmission.notes}</p>
+                  <p className="text-white break-words">{selectedSubmission.notes}</p>
                 </div>
               )}
 
-              {/* Rejection Reason */}
               {selectedSubmission.status === 'rejected' && selectedSubmission.rejectionReason && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-red-200">Rejection Reason</h3>
-                  <p className="text-red-100">{selectedSubmission.rejectionReason}</p>
+                  <p className="text-red-100 break-words">{selectedSubmission.rejectionReason}</p>
                 </div>
               )}
 
-              {/* Review Information */}
               {selectedSubmission.reviewedAt && (
                 <div className="bg-white/5 rounded-lg p-4">
                   <h3 className="text-lg font-semibold mb-3">Review Information</h3>
@@ -2904,13 +2761,12 @@ ESHS ASB Team
         </DialogContent>
       </Dialog>
 
-      {/* Student Government Modal */}
       <Dialog open={showStudentGovModal} onOpenChange={setShowStudentGovModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-white">{editingItem ? 'Edit Position' : 'Add Position'}</DialogTitle>
           </DialogHeader>
-          <StudentGovForm 
+          <StudentGovForm
             member={editingItem}
             onSubmit={handleStudentGovSubmit}
             onCancel={() => {
@@ -2921,13 +2777,12 @@ ESHS ASB Team
         </DialogContent>
       </Dialog>
 
-      {/* Club Modal */}
       <Dialog open={showClubModal} onOpenChange={setShowClubModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-white">{editingItem ? 'Edit Club' : 'Add Club'}</DialogTitle>
           </DialogHeader>
-          <ClubForm 
+          <ClubForm
             club={editingItem}
             onSubmit={handleClubSubmit}
             onCancel={() => {
