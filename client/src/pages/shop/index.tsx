@@ -1,20 +1,21 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ThemedCard, PrimaryButton, OutlineButton } from "@/components/ThemedComponents";
+import { PrimaryButton } from "@/components/ThemedComponents";
 import { getProducts, type Product } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { UniversalPageLayout } from "@/components/UniversalPageLayout";
-import { BlurContainer, BlurCard, BlurActionButton } from "@/components/UniversalBlurComponents";
+import { BlurContainer, BlurCard } from "@/components/UniversalBlurComponents";
+import { ShoppingCart } from "lucide-react";
 
 export default function Shop() {
   const [, setLocation] = useLocation();
+  const { cartCount } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load products from API
   useEffect(() => {
     const loadProducts = async () => {
       try {
@@ -32,20 +33,17 @@ export default function Shop() {
 
     loadProducts();
   }, []);
-  
+
   const handleProductClick = (productId: string) => {
-    // Set referrer for proper back navigation
     sessionStorage.setItem('shop-referrer', '/shop');
     setLocation(`/shop/product/${productId}`);
   };
-  
-  // Use cart count from CartContext
-  const { cartCount } = useCart();
 
   const handleCartClick = () => {
     sessionStorage.setItem('cart-referrer', '/shop');
     setLocation("/shop/cart");
   };
+
   return (
     <UniversalPageLayout
       pageType="shop"
@@ -53,15 +51,14 @@ export default function Shop() {
       rightElement={({ contentVisible }) => (
         <button
           onClick={handleCartClick}
-          className="relative p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/15 transition-all duration-300"
+          aria-label="View cart"
+          className="relative flex items-center justify-center min-h-11 min-w-11 p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/15 transition-all duration-300"
           style={{
             backdropFilter: contentVisible ? 'blur(20px)' : 'blur(0px)',
             WebkitBackdropFilter: contentVisible ? 'blur(20px)' : 'blur(0px)',
           }}
         >
-          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
+          <ShoppingCart className="w-5 h-5 text-white" />
           {cartCount > 0 && (
             <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
               {cartCount}
@@ -72,20 +69,19 @@ export default function Shop() {
     >
       {({ contentVisible }) => (
         <>
-          {/* Important Shopping Information */}
-          <BlurContainer contentVisible={contentVisible} delay="200ms" className="p-6">
+          <BlurContainer contentVisible={contentVisible} delay="200ms" className="p-4 sm:p-6">
             <div className="space-y-4">
               <div className="p-4 rounded-lg border border-blue-400/50 bg-blue-500/20">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-semibold text-white">Student In-Class Delivery Available</h3>
-                  <span className="text-sm text-gray-300">Delivery</span>
+                <div className="flex justify-between items-start gap-3">
+                  <h3 className="font-semibold text-white break-words">Student In-Class Delivery Available</h3>
+                  <span className="text-sm text-gray-300 shrink-0">Delivery</span>
                 </div>
                 <p className="text-sm mt-2 text-gray-200">We will deliver items to students during their fourth period!</p>
               </div>
               <div className="p-4 rounded-lg border border-amber-400/50 bg-green-500/20">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-semibold text-white">Pickup Available at Activities Office</h3>
-                  <span className="text-sm text-gray-300">Pickup</span>
+                <div className="flex justify-between items-start gap-3">
+                  <h3 className="font-semibold text-white break-words">Pickup Available at Activities Office</h3>
+                  <span className="text-sm text-gray-300 shrink-0">Pickup</span>
                 </div>
                 <p className="text-sm mt-2 text-gray-200">Order online and pick up your items during school hours at the Activities Office.</p>
               </div>
@@ -94,7 +90,6 @@ export default function Shop() {
 
           <div className="mb-8" />
 
-          {/* Loading State */}
           {loading && (
             <BlurContainer contentVisible={contentVisible} delay="300ms" className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
@@ -102,7 +97,6 @@ export default function Shop() {
             </BlurContainer>
           )}
 
-          {/* Error State */}
           {error && (
             <BlurContainer contentVisible={contentVisible} delay="300ms" className="p-6 text-center">
               <div className="text-red-400 mb-4">
@@ -118,23 +112,21 @@ export default function Shop() {
             </BlurContainer>
           )}
 
-          {/* Product Grid */}
           {!loading && !error && (
             products.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
                 {products.map((item, index) => (
-                  <BlurCard 
-                    key={item._id} 
+                  <BlurCard
+                    key={item._id}
                     contentVisible={contentVisible}
                     index={index}
                     delay={`${300 + (index * 75)}ms`}
                     className="cursor-pointer"
                     onClick={() => handleProductClick(item._id)}
                   >
-                    {/* Product Image */}
                     <div className="h-48 bg-gray-900 overflow-hidden">
-                      <img 
-                        src={item.image} 
+                      <img
+                        src={item.image}
                         alt={item.name}
                         className="w-full h-full object-cover transition-transform hover:scale-105"
                         onError={(e) => {
@@ -142,21 +134,21 @@ export default function Shop() {
                         }}
                       />
                     </div>
-                    
+
                     <CardHeader>
-                      <CardTitle className="text-lg font-semibold text-white">{item.name}</CardTitle>
-                      <div className="flex justify-between items-center mt-2">
+                      <CardTitle className="text-lg font-semibold text-white break-words">{item.name}</CardTitle>
+                      <div className="flex justify-between items-center gap-2 mt-2">
                         <span className="text-xl font-bold text-blue-400">${item.price.toFixed(2)}</span>
-                        <Badge variant="outline">{item.category}</Badge>
+                        <Badge variant="outline" className="shrink-0">{item.category}</Badge>
                       </div>
                     </CardHeader>
-                    
+
                     <CardContent>
-                      <p className="text-gray-300 text-sm mb-3">{item.description}</p>
+                      <p className="text-gray-300 text-sm mb-3 break-words">{item.description}</p>
                     </CardContent>
-                    
+
                     <CardFooter className="border-t pt-4">
-                      <PrimaryButton className="w-full">
+                      <PrimaryButton className="w-full min-h-11">
                         View Details
                       </PrimaryButton>
                     </CardFooter>

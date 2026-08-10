@@ -1,22 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Package, 
-  DollarSign, 
-  TrendingUp, 
-  Search, 
+import { useState, useMemo } from 'react';
+import {
+  Package,
+  DollarSign,
+  Search,
   Eye,
   Check,
-  X,
-  Edit,
-  Calendar,
   User,
   Phone,
-  Mail,
-  MapPin,
-  FileText,
-  Filter,
-  ChevronDown,
-  ChevronUp
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +29,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Purchase, updatePurchase } from '@/lib/api';
-import { format, parseISO, isAfter, isBefore, isEqual } from 'date-fns';
+import { format, isValid } from 'date-fns';
+
+type StatusFilter = 'all' | 'paid' | 'completed';
+type DateFilter = 'all' | 'today' | 'week' | 'month';
+
+const NOT_PROVIDED = 'Not provided';
+
+function formatDate(value: Date | string | undefined, pattern: string): string {
+  if (!value) return NOT_PROVIDED;
+  const parsed = new Date(value);
+  return isValid(parsed) ? format(parsed, pattern) : NOT_PROVIDED;
+}
 
 interface OrdersManagementProps {
   purchases: Purchase[];
@@ -51,37 +53,34 @@ export default function OrdersManagement({
   onUpdatePurchase,
   onRefreshData
 }: OrdersManagementProps) {
-  // Filter states
   const [showPending, setShowPending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'completed'>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
-  // Modal states
   const [selectedOrder, setSelectedOrder] = useState<Purchase | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showFulfillModal, setShowFulfillModal] = useState(false);
   const [fulfillmentName, setFulfillmentName] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [notesSaved, setNotesSaved] = useState(false);
 
-  // Filter orders
   const filteredOrders = useMemo(() => {
-    // Filter out ticket purchases (those with formSubmissionId) - they belong in Form Submissions
     let filtered = purchases.filter(p => !p.formSubmissionId);
 
-    // Filter by status
     if (!showPending) {
       filtered = filtered.filter(p => p.status !== 'pending');
     }
-    
+
     if (statusFilter !== 'all') {
       filtered = filtered.filter(p => p.status === statusFilter);
     }
-    
-    // Search filter
+
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         p.studentName.toLowerCase().includes(search) ||
         p.studentEmail.toLowerCase().includes(search) ||
         p.productName.toLowerCase().includes(search) ||
@@ -89,8 +88,7 @@ export default function OrdersManagement({
         p.cloverOrderId?.toLowerCase().includes(search)
       );
     }
-    
-    // Date filter
+
     const now = new Date();
     if (dateFilter === 'today') {
       filtered = filtered.filter(p => {
@@ -104,46 +102,44 @@ export default function OrdersManagement({
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       filtered = filtered.filter(p => new Date(p.date) >= monthAgo);
     }
-    
-    // Sort by date descending
+
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [purchases, showPending, searchTerm, dateFilter, statusFilter]);
 
-  // Analytics (exclude ticket purchases)
   const analytics = useMemo(() => {
     const merchPurchases = purchases.filter(p => !p.formSubmissionId);
     const paid = merchPurchases.filter(p => p.status === 'paid');
     const completed = merchPurchases.filter(p => p.status === 'completed');
     const pending = merchPurchases.filter(p => p.status === 'pending');
-    
+    const settled = paid.concat(completed);
+
     return {
-      totalRevenue: paid.concat(completed).reduce((sum, p) => sum + p.amount, 0),
+      totalRevenue: settled.reduce((sum, p) => sum + p.amount, 0),
       pendingRevenue: pending.reduce((sum, p) => sum + p.amount, 0),
       paidOrders: paid.length,
       completedOrders: completed.length,
       pendingOrders: pending.length,
-      itemsSold: paid.concat(completed).reduce((sum, p) => sum + p.quantity, 0)
+      itemsSold: settled.reduce((sum, p) => sum + p.quantity, 0)
     };
   }, [purchases]);
 
   const handleFulfillOrder = async () => {
-    if (!selectedOrder || !fulfillmentName) return;
-    
+    if (!selectedOrder || !fulfillmentName.trim() || isSaving) return;
+
+    const fulfillment: Partial<Purchase> = {
+      status: 'completed',
+      fulfilledBy: fulfillmentName.trim(),
+      fulfilledAt: new Date(),
+      adminNotes: adminNotes || selectedOrder.adminNotes
+    };
+
+    setIsSaving(true);
+    setActionError('');
+
     try {
-      await updatePurchase(selectedOrder._id, {
-        status: 'completed',
-        fulfilledBy: fulfillmentName,
-        fulfilledAt: new Date(),
-        adminNotes: adminNotes || selectedOrder.adminNotes
-      });
-      
-      onUpdatePurchase(selectedOrder._id, {
-        status: 'completed',
-        fulfilledBy: fulfillmentName,
-        fulfilledAt: new Date(),
-        adminNotes: adminNotes || selectedOrder.adminNotes
-      });
-      
+      await updatePurchase(selectedOrder._id, fulfillment);
+      onUpdatePurchase(selectedOrder._id, fulfillment);
+
       setShowFulfillModal(false);
       setFulfillmentName('');
       setAdminNotes('');
@@ -151,36 +147,50 @@ export default function OrdersManagement({
       onRefreshData();
     } catch (error) {
       console.error('Failed to fulfill order:', error);
-      alert('Failed to fulfill order. Please try again.');
+      setActionError('Failed to fulfill order. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleUpdateNotes = async (orderId: string, notes: string) => {
+    if (isSaving) return;
+
+    setIsSaving(true);
+    setActionError('');
+    setNotesSaved(false);
+
     try {
       await updatePurchase(orderId, { adminNotes: notes });
       onUpdatePurchase(orderId, { adminNotes: notes });
+      setNotesSaved(true);
       onRefreshData();
     } catch (error) {
       console.error('Failed to update notes:', error);
+      setActionError('Failed to save notes. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const openOrderDetails = (order: Purchase) => {
     setSelectedOrder(order);
     setAdminNotes(order.adminNotes || '');
+    setActionError('');
+    setNotesSaved(false);
     setShowOrderModal(true);
   };
 
   const openFulfillModal = (order: Purchase) => {
     setSelectedOrder(order);
     setAdminNotes(order.adminNotes || '');
+    setActionError('');
     setShowFulfillModal(true);
   };
 
   return (
     <div className="space-y-6">
-      {/* Analytics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
         <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-3 md:p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -209,7 +219,7 @@ export default function OrdersManagement({
           </div>
         </div>
 
-        <div className="col-span-2 md:col-span-1 bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-3 md:p-6">
+        <div className="sm:col-span-2 md:col-span-1 bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl p-3 md:p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-xs md:text-sm font-medium text-gray-300">Items Sold</h3>
@@ -222,15 +232,13 @@ export default function OrdersManagement({
         </div>
       </div>
 
-      {/* Orders Section */}
       <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl">
         <div className="p-3 md:p-6 border-b border-white/10">
           <div className="flex flex-col md:flex-row gap-2 md:gap-4">
             <div className="flex-1">
               <h3 className="text-base md:text-lg font-semibold text-white mb-2 md:mb-4">Orders</h3>
 
-              {/* Filters */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -240,8 +248,8 @@ export default function OrdersManagement({
                     className="pl-10 bg-white/5 border-white/10 text-white"
                   />
                 </div>
-                
-                <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+
+                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
                   <SelectTrigger className="bg-white/5 border-white/10 text-white">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -251,8 +259,8 @@ export default function OrdersManagement({
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
-                
-                <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
+
+                <Select value={dateFilter} onValueChange={(value) => setDateFilter(value as DateFilter)}>
                   <SelectTrigger className="bg-white/5 border-white/10 text-white">
                     <SelectValue placeholder="Date" />
                   </SelectTrigger>
@@ -263,10 +271,10 @@ export default function OrdersManagement({
                     <SelectItem value="month">This Month</SelectItem>
                   </SelectContent>
                 </Select>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="show-pending" 
+
+                <div className="flex items-center space-x-2 min-h-11">
+                  <Checkbox
+                    id="show-pending"
                     checked={showPending}
                     onCheckedChange={(checked) => setShowPending(!!checked)}
                   />
@@ -278,8 +286,7 @@ export default function OrdersManagement({
             </div>
           </div>
         </div>
-        
-        {/* Orders Table */}
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -303,8 +310,8 @@ export default function OrdersManagement({
                   </td>
                   <td className="py-2 md:py-4 px-2 md:px-6">
                     <div>
-                      <div className="text-xs md:text-sm font-medium text-white">{order.studentName}</div>
-                      <div className="text-xs text-gray-400 hidden md:block">{order.studentEmail}</div>
+                      <div className="text-xs md:text-sm font-medium text-white break-words">{order.studentName}</div>
+                      <div className="text-xs text-gray-400 hidden md:block break-all">{order.studentEmail}</div>
                     </div>
                   </td>
                   <td className="py-2 md:py-4 px-2 md:px-6 hidden md:table-cell">
@@ -343,8 +350,8 @@ export default function OrdersManagement({
                       <span className="md:hidden">{order.status === 'paid' ? 'Paid' : order.status}</span>
                     </Badge>
                   </td>
-                  <td className="py-2 md:py-4 px-2 md:px-6 text-sm text-gray-300 hidden md:table-cell">
-                    {format(new Date(order.date), 'MMM dd, yyyy')}
+                  <td className="py-2 md:py-4 px-2 md:px-6 text-sm text-gray-300 hidden md:table-cell whitespace-nowrap">
+                    {formatDate(order.date, 'MMM dd, yyyy')}
                   </td>
                   <td className="py-2 md:py-4 px-2 md:px-6 text-sm text-gray-300 hidden md:table-cell">
                     {order.fulfilledBy ? (
@@ -352,7 +359,7 @@ export default function OrdersManagement({
                         <div className="text-white">{order.fulfilledBy}</div>
                         {order.fulfilledAt && (
                           <div className="text-xs text-gray-400">
-                            {format(new Date(order.fulfilledAt), 'MMM dd')}
+                            {formatDate(order.fulfilledAt, 'MMM dd')}
                           </div>
                         )}
                       </div>
@@ -366,18 +373,20 @@ export default function OrdersManagement({
                         size="sm"
                         variant="outline"
                         onClick={() => openOrderDetails(order)}
-                        className="bg-white/5 hover:bg-white/10 text-white border-white/20 p-1 md:p-2"
+                        aria-label="View order details"
+                        className="bg-white/5 hover:bg-white/10 text-white border-white/20 h-11 w-11 md:h-9 md:w-9 p-0 shrink-0"
                       >
-                        <Eye className="w-3 h-3" />
+                        <Eye className="w-4 h-4 md:w-3 md:h-3" />
                       </Button>
                       {order.status === 'paid' && (
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => openFulfillModal(order)}
-                          className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border-blue-500/30 p-1 md:p-2"
+                          aria-label="Mark order as fulfilled"
+                          className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border-blue-500/30 h-11 w-11 md:h-9 md:w-9 p-0 shrink-0"
                         >
-                          <Check className="w-3 h-3" />
+                          <Check className="w-4 h-4 md:w-3 md:h-3" />
                         </Button>
                       )}
                     </div>
@@ -386,7 +395,7 @@ export default function OrdersManagement({
               ))}
             </tbody>
           </table>
-          
+
           {filteredOrders.length === 0 && (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-gray-400" />
@@ -399,24 +408,23 @@ export default function OrdersManagement({
         </div>
       </div>
 
-      {/* Order Details Modal */}
       <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+        <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-white">Order Details</DialogTitle>
           </DialogHeader>
-          
+
           {selectedOrder && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-gray-400 text-sm">Order ID</Label>
                   <p className="text-white font-mono">#{selectedOrder._id.slice(-8)}</p>
                 </div>
                 <div>
                   <Label className="text-gray-400 text-sm">Status</Label>
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={`
                       ${selectedOrder.status === 'paid' ? 'bg-green-600/20 border-green-600/30 text-green-200' : ''}
                       ${selectedOrder.status === 'completed' ? 'bg-blue-600/20 border-blue-600/30 text-blue-200' : ''}
@@ -432,17 +440,17 @@ export default function OrdersManagement({
                 <Label className="text-gray-400 text-sm">Customer Information</Label>
                 <div className="mt-2 space-y-2">
                   <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <span className="text-white">{selectedOrder.studentName}</span>
+                    <User className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span className="text-white break-words">{selectedOrder.studentName}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-gray-400" />
-                    <span className="text-white">{selectedOrder.studentEmail}</span>
+                    <Mail className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span className="text-white break-all">{selectedOrder.studentEmail}</span>
                   </div>
                   {selectedOrder.phone && (
                     <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-gray-400" />
-                      <span className="text-white">{selectedOrder.phone}</span>
+                      <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+                      <span className="text-white break-all">{selectedOrder.phone}</span>
                     </div>
                   )}
                 </div>
@@ -451,11 +459,12 @@ export default function OrdersManagement({
               <div className="border-t border-white/10 pt-4">
                 <Label className="text-gray-400 text-sm">Order Information</Label>
                 <div className="mt-2 space-y-2">
-                  <p className="text-white"><strong>Product:</strong> {selectedOrder.productName}</p>
+                  <p className="text-white break-words"><strong>Product:</strong> {selectedOrder.productName}</p>
                   <p className="text-white"><strong>Quantity:</strong> {selectedOrder.quantity}</p>
                   {selectedOrder.size && <p className="text-white"><strong>Size:</strong> {selectedOrder.size}</p>}
                   <p className="text-white"><strong>Amount:</strong> ${selectedOrder.amount.toFixed(2)}</p>
-                  <p className="text-white"><strong>Payment Method:</strong> {selectedOrder.paymentMethod}</p>
+                  <p className="text-white"><strong>Payment Method:</strong> {selectedOrder.paymentMethod || NOT_PROVIDED}</p>
+                  <p className="text-white"><strong>Ordered:</strong> {formatDate(selectedOrder.date, 'MMM dd, yyyy hh:mm a')}</p>
                 </div>
               </div>
 
@@ -475,10 +484,10 @@ export default function OrdersManagement({
                 <div className="border-t border-white/10 pt-4">
                   <Label className="text-gray-400 text-sm">Fulfillment Information</Label>
                   <div className="mt-2 space-y-2">
-                    <p className="text-white"><strong>Fulfilled By:</strong> {selectedOrder.fulfilledBy}</p>
+                    <p className="text-white break-words"><strong>Fulfilled By:</strong> {selectedOrder.fulfilledBy}</p>
                     {selectedOrder.fulfilledAt && (
                       <p className="text-white">
-                        <strong>Fulfilled At:</strong> {format(new Date(selectedOrder.fulfilledAt), 'MMM dd, yyyy hh:mm a')}
+                        <strong>Fulfilled At:</strong> {formatDate(selectedOrder.fulfilledAt, 'MMM dd, yyyy hh:mm a')}
                       </p>
                     )}
                   </div>
@@ -489,42 +498,51 @@ export default function OrdersManagement({
                 <Label className="text-gray-400 text-sm">Admin Notes</Label>
                 <Textarea
                   value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
+                  onChange={(e) => {
+                    setAdminNotes(e.target.value);
+                    setNotesSaved(false);
+                  }}
                   placeholder="Add notes about this order..."
                   className="mt-2 bg-white/5 border-white/10 text-white"
                 />
                 <Button
                   onClick={() => handleUpdateNotes(selectedOrder._id, adminNotes)}
-                  className="mt-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isSaving}
+                  className="mt-2 min-h-11 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Save Notes
+                  {isSaving ? 'Saving...' : 'Save Notes'}
                 </Button>
+                {actionError && (
+                  <p className="mt-2 text-sm text-red-400">{actionError}</p>
+                )}
+                {notesSaved && !actionError && (
+                  <p className="mt-2 text-sm text-green-400">Notes saved.</p>
+                )}
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Fulfill Order Modal */}
       <Dialog open={showFulfillModal} onOpenChange={setShowFulfillModal}>
-        <DialogContent className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
+        <DialogContent className="w-[95vw] sm:w-full sm:max-w-lg max-h-[85vh] overflow-y-auto bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-white">Fulfill Order</DialogTitle>
           </DialogHeader>
-          
+
           {selectedOrder && (
             <div className="space-y-4">
               <div>
                 <Label className="text-gray-400 text-sm">Order Information</Label>
                 <div className="mt-2 p-3 bg-white/5 rounded-lg">
-                  <p className="text-white text-sm">
+                  <p className="text-white text-sm break-words">
                     <strong>Customer:</strong> {selectedOrder.studentName}
                   </p>
-                  <p className="text-white text-sm">
+                  <p className="text-white text-sm break-words">
                     <strong>Product:</strong> {selectedOrder.productName} (x{selectedOrder.quantity})
                   </p>
                   <p className="text-white text-sm">
-                    <strong>Delivery:</strong> {selectedOrder.deliveryMethod}
+                    <strong>Delivery:</strong> {selectedOrder.deliveryMethod || NOT_PROVIDED}
                   </p>
                 </div>
               </div>
@@ -556,18 +574,23 @@ export default function OrdersManagement({
                 />
               </div>
 
-              <div className="flex gap-2 pt-4">
+              {actionError && (
+                <p className="text-sm text-red-400">{actionError}</p>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-4">
                 <Button
                   onClick={handleFulfillOrder}
-                  disabled={!fulfillmentName}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  disabled={!fulfillmentName.trim() || isSaving}
+                  className="flex-1 min-h-11 bg-green-600 hover:bg-green-700 text-white"
                 >
-                  Mark as Fulfilled
+                  {isSaving ? 'Saving...' : 'Mark as Fulfilled'}
                 </Button>
                 <Button
                   onClick={() => setShowFulfillModal(false)}
+                  disabled={isSaving}
                   variant="outline"
-                  className="flex-1 bg-white/5 hover:bg-white/10 text-white border-white/20"
+                  className="flex-1 min-h-11 bg-white/5 hover:bg-white/10 text-white border-white/20"
                 >
                   Cancel
                 </Button>

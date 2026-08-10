@@ -4,7 +4,6 @@ import { ThemedCard, PrimaryButton } from "@/components/ThemedComponents";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 
-// Universal Blur Back Button - matches shop page exactly
 export const BlurBackButton: React.FC<{
   contentVisible: boolean;
   className?: string;
@@ -27,7 +26,7 @@ export const BlurBackButton: React.FC<{
       variant="ghost"
       onClick={handleBackClick}
       className={cn(
-        "text-white/90 hover:text-white p-2 mr-4 bg-white/5 border border-white/10 shadow-2xl rounded-lg hover:bg-white/15 transition-all duration-300 flex items-center space-x-2",
+        "text-white/90 hover:text-white p-2 min-h-11 mr-2 md:mr-4 shrink-0 bg-white/5 border border-white/10 shadow-2xl rounded-lg hover:bg-white/15 transition-all duration-300 flex items-center space-x-2",
         className
       )}
       style={{
@@ -37,7 +36,7 @@ export const BlurBackButton: React.FC<{
       }}
     >
       <svg
-        className="w-5 h-5"
+        className="w-5 h-5 shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -54,7 +53,6 @@ export const BlurBackButton: React.FC<{
   );
 };
 
-// Universal Blur Container - matches shop page card pattern
 export const BlurContainer: React.FC<{
   contentVisible: boolean;
   delay?: string;
@@ -82,7 +80,6 @@ export const BlurContainer: React.FC<{
   );
 };
 
-// Universal Blur Card - using ThemedCard with consistent pattern
 export const BlurCard: React.FC<{
   contentVisible: boolean;
   delay?: string;
@@ -115,7 +112,6 @@ export const BlurCard: React.FC<{
   );
 };
 
-// Universal Page Header with consistent animation
 export const BlurPageHeader: React.FC<{
   contentVisible: boolean;
   title: string;
@@ -127,25 +123,25 @@ export const BlurPageHeader: React.FC<{
 }> = ({ contentVisible, title, showBackButton = true, backButtonText, onBackClick, rightElement, className }) => {
   return (
     <div
-      className={cn("flex items-center justify-between mb-6 md:mb-8 transition-all duration-700 ease-out", className)}
+      className={cn("flex items-center justify-between gap-2 mb-6 md:mb-8 transition-all duration-700 ease-out", className)}
       style={{
         opacity: contentVisible ? 1 : 0,
         transform: contentVisible ? 'translateY(0)' : 'translateY(-20px)',
         transitionDelay: '100ms'
       }}
     >
-      <div className="flex items-center">
+      <div className="flex items-center min-w-0">
         {showBackButton && (
           <BlurBackButton contentVisible={contentVisible} onClick={onBackClick}>
             {backButtonText}
           </BlurBackButton>
         )}
-        <h1 className="font-bold text-2xl md:text-3xl text-white tracking-tight">
+        <h1 className="font-bold text-xl sm:text-2xl md:text-3xl text-white tracking-tight break-words min-w-0">
           {title}
         </h1>
       </div>
       {rightElement && (
-        <div className="flex items-center">
+        <div className="flex items-center shrink-0">
           {rightElement}
         </div>
       )}
@@ -153,7 +149,6 @@ export const BlurPageHeader: React.FC<{
   );
 };
 
-// Universal Cart/Action Button with consistent styling
 export const BlurActionButton: React.FC<{
   contentVisible: boolean;
   onClick?: () => void;
@@ -166,7 +161,7 @@ export const BlurActionButton: React.FC<{
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "bg-white/5 border border-white/10 shadow-2xl hover:bg-white/20 text-white px-4 h-10 text-sm font-medium rounded-lg flex items-center space-x-2",
+        "bg-white/5 border border-white/10 shadow-2xl hover:bg-white/20 text-white px-4 h-11 text-sm font-medium rounded-lg flex items-center space-x-2",
         className
       )}
       style={{

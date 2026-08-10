@@ -1,7 +1,6 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 
-// Define the cart item interface
-interface CartItem {
+export interface CartItem {
   id: number | string;
   name: string;
   price: number;
@@ -11,9 +10,10 @@ interface CartItem {
   color?: string;
   type?: 'product' | 'event';
   eventId?: string;
+  ticketType?: string;
+  maxQuantity?: number;
 }
 
-// Define the cart context interface
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (item: CartItem) => void;
@@ -23,121 +23,134 @@ interface CartContextType {
   cartCount: number;
 }
 
-// Create the context
-const CartContext = createContext<CartContextType | undefined>(undefined);
+const CART_COOKIE_NAME = 'cart';
+const CART_COOKIE_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
-// Cart provider component
-export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [cartCount, setCartCount] = useState(0);
+const isSameCartLine = (item: CartItem, id: string | number, size?: string, color?: string) =>
+  item.id === id && item.size === size && item.color === color;
 
-  // Load cart from cookies on component mount
-  useEffect(() => {
-    const cookieCart = getCartFromCookies();
-    setCartItems(cookieCart);
-    updateCartCount(cookieCart);
-  }, []);
+const clampQuantity = (quantity: number, maxQuantity?: number) => {
+  const upperBound =
+    typeof maxQuantity === 'number' && Number.isFinite(maxQuantity) && maxQuantity > 0
+      ? Math.floor(maxQuantity)
+      : Number.MAX_SAFE_INTEGER;
+  if (!Number.isFinite(quantity)) return 1;
+  return Math.max(1, Math.min(Math.floor(quantity), upperBound));
+};
 
-  // Update cart count when cart items change
-  useEffect(() => {
-    updateCartCount(cartItems);
-  }, [cartItems]);
-
-  // Get cart from cookies
-  const getCartFromCookies = (): CartItem[] => {
-    try {
-      const cartData = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('cart='))
-        ?.split('=')[1];
-      return cartData ? JSON.parse(decodeURIComponent(cartData)) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  // Save cart to cookies
-  const saveCartToCookies = (items: CartItem[]) => {
-    const expires = new Date();
-    expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000)); // 24 hours
-    document.cookie = `cart=${encodeURIComponent(JSON.stringify(items))}; expires=${expires.toUTCString()}; path=/`;
-  };
-
-  // Update cart count
-  const updateCartCount = (items: CartItem[]) => {
-    const count = items.reduce((total, item) => total + item.quantity, 0);
-    setCartCount(count);
-  };
-
-  // Add item to cart
-  const addToCart = (newItem: CartItem) => {
-    // Check if the item already exists in the cart (with the same id, size, and color)
-    const existingItemIndex = cartItems.findIndex(item => 
-      item.id === newItem.id && 
-      item.size === newItem.size && 
-      item.color === newItem.color
-    );
-
-    let updatedCart;
-    
-    if (existingItemIndex !== -1) {
-      // Update the quantity of the existing item
-      updatedCart = [...cartItems];
-      updatedCart[existingItemIndex].quantity += newItem.quantity;
-    } else {
-      // Add new item to the cart
-      updatedCart = [...cartItems, newItem];
-    }
-    
-    setCartItems(updatedCart);
-    saveCartToCookies(updatedCart);
-  };
-
-  // Remove item from cart
-  const removeFromCart = (id: string | number, size?: string, color?: string) => {
-    const updatedCart = cartItems.filter(
-      item => !(item.id === id && item.size === size && item.color === color)
-    );
-    setCartItems(updatedCart);
-    saveCartToCookies(updatedCart);
-  };
-
-  // Update item quantity
-  const updateQuantity = (id: string | number, change: number, size?: string, color?: string) => {
-    const updatedCart = cartItems.map(item => {
-      if (item.id === id && item.size === size && item.color === color) {
-        const newQuantity = item.quantity + change;
-        return { ...item, quantity: newQuantity > 0 ? newQuantity : 1 };
-      }
-      return item;
-    });
-    setCartItems(updatedCart);
-    saveCartToCookies(updatedCart);
-  };
-
-  // Clear cart
-  const clearCart = () => {
-    setCartItems([]);
-    saveCartToCookies([]);
-  };
-
+const isStoredCartItem = (value: unknown): value is CartItem => {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<CartItem>;
   return (
-    <CartContext.Provider
-      value={{
-        cartItems,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        cartCount,
-      }}
-    >
-      {children}
-    </CartContext.Provider>
+    (typeof candidate.id === 'string' || typeof candidate.id === 'number') &&
+    typeof candidate.name === 'string' &&
+    typeof candidate.price === 'number' &&
+    Number.isFinite(candidate.price) &&
+    typeof candidate.quantity === 'number' &&
+    Number.isFinite(candidate.quantity)
   );
 };
 
-// Custom hook to use the cart context
+const readCartFromCookies = (): CartItem[] => {
+  if (typeof document === 'undefined') return [];
+  try {
+    const cartData = document.cookie
+      .split('; ')
+      .find(row => row.startsWith(`${CART_COOKIE_NAME}=`))
+      ?.split('=')[1];
+    if (!cartData) return [];
+    const parsed = JSON.parse(decodeURIComponent(cartData));
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(isStoredCartItem)
+      .map(item => ({ ...item, quantity: clampQuantity(item.quantity, item.maxQuantity) }));
+  } catch (error) {
+    console.error('Discarding unreadable saved cart:', error);
+    return [];
+  }
+};
+
+const writeCartToCookies = (items: CartItem[]) => {
+  if (typeof document === 'undefined') return;
+  const expires = new Date(Date.now() + CART_COOKIE_LIFETIME_MS);
+  document.cookie = `${CART_COOKIE_NAME}=${encodeURIComponent(JSON.stringify(items))}; expires=${expires.toUTCString()}; path=/`;
+};
+
+export const SALES_TAX_RATE = 0.0875;
+
+export const roundToCents = (amount: number) => Math.round((amount + Number.EPSILON) * 100) / 100;
+
+export const calculateCartTotals = (items: CartItem[]) => {
+  const subtotal = roundToCents(items.reduce((total, item) => total + item.price * item.quantity, 0));
+  const tax = roundToCents(subtotal * SALES_TAX_RATE);
+  return { subtotal, tax, total: roundToCents(subtotal + tax) };
+};
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [cartItems, setCartItems] = useState<CartItem[]>(readCartFromCookies);
+
+  useEffect(() => {
+    writeCartToCookies(cartItems);
+  }, [cartItems]);
+
+  const cartCount = useMemo(
+    () => cartItems.reduce((total, item) => total + item.quantity, 0),
+    [cartItems]
+  );
+
+  const addToCart = useCallback((newItem: CartItem) => {
+    setCartItems(previousItems => {
+      const existingIndex = previousItems.findIndex(item =>
+        isSameCartLine(item, newItem.id, newItem.size, newItem.color)
+      );
+
+      if (existingIndex === -1) {
+        return [...previousItems, { ...newItem, quantity: clampQuantity(newItem.quantity, newItem.maxQuantity) }];
+      }
+
+      return previousItems.map((item, index) => {
+        if (index !== existingIndex) return item;
+        const maxQuantity = newItem.maxQuantity ?? item.maxQuantity;
+        return {
+          ...item,
+          maxQuantity,
+          quantity: clampQuantity(item.quantity + newItem.quantity, maxQuantity),
+        };
+      });
+    });
+  }, []);
+
+  const removeFromCart = useCallback((id: string | number, size?: string, color?: string) => {
+    setCartItems(previousItems => previousItems.filter(item => !isSameCartLine(item, id, size, color)));
+  }, []);
+
+  const updateQuantity = useCallback(
+    (id: string | number, change: number, size?: string, color?: string) => {
+      setCartItems(previousItems =>
+        previousItems.map(item =>
+          isSameCartLine(item, id, size, color)
+            ? { ...item, quantity: clampQuantity(item.quantity + change, item.maxQuantity) }
+            : item
+        )
+      );
+    },
+    []
+  );
+
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+  }, []);
+
+  const value = useMemo(
+    () => ({ cartItems, addToCart, removeFromCart, updateQuantity, clearCart, cartCount }),
+    [cartItems, addToCart, removeFromCart, updateQuantity, clearCart, cartCount]
+  );
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+};
+
 export const useCart = () => {
   const context = useContext(CartContext);
   if (context === undefined) {

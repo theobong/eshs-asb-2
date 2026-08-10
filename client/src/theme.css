@@ -1,64 +1,9 @@
-/* ESHS ASB Universal Theme
-   This theme will be applied across all pages (except home) 
-   to create a consistent design language */
-
 :root {
-  /* Base colors */
-  --eshs-blue: 207 90% 54%; /* #1e88e5 - School blue */
-  --eshs-gold: 43 89% 62%; /* #f9c74f - School gold */
-  --eshs-dark: 240 10% 3.9%; /* #09090b - Near black */
-  
-  /* Interface colors */
-  --background: var(--eshs-dark);
-  --foreground: 0 0% 98%; /* Near white text */
-  
-  /* Card styling */
-  --card: 240 10% 8%; /* Slightly lighter than background */
-  --card-foreground: 0 0% 98%;
-  --card-border: 240 10% 15%;
-  
-  /* Button styling */
-  --primary: var(--eshs-blue);
-  --primary-foreground: 211 100% 99%;
-  --secondary: var(--eshs-gold);
-  --secondary-foreground: 240 10% 3.9%;
-  
-  /* Accent colors */
-  --accent: 240 5% 12%; /* Subtle highlight */
-  --accent-foreground: 0 0% 98%;
-  --muted: 240 5% 15%;
-  --muted-foreground: 240 5% 64.9%;
-  
-  /* Form controls */
-  --input: 240 5% 15%;
-  --border: 240 5% 20%;
-  --ring: var(--eshs-blue);
-  
-  /* Utility */
-  --radius: 0.5rem;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
+  --eshs-blue: 207 90% 54%;
+  --eshs-gold: 43 89% 62%;
+  --eshs-dark: 240 10% 3.9%;
 }
 
-/* Dark mode is the default for our theme */
-.dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 10% 8%;
-  --card-foreground: 0 0% 98%;
-  --border: 240 5% 20%;
-  --input: 240 5% 15%;
-  --primary: var(--eshs-blue);
-  --primary-foreground: 211 100% 99%;
-  --secondary: var(--eshs-gold);
-  --secondary-foreground: 240 10% 3.9%;
-  --accent: 240 5% 12%;
-  --accent-foreground: 0 0% 98%;
-  --muted: 240 5% 15%;
-  --muted-foreground: 240 5% 64.9%;
-}
-
-/* Button styles override - matching existing site pattern */
 .btn-primary {
   background-color: rgba(255, 255, 255, 0.1) !important;
   backdrop-filter: blur(20px) !important;
@@ -95,7 +40,6 @@
   background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Card styles override */
 .card-themed {
   background-color: rgba(255, 255, 255, 0.05) !important;
   backdrop-filter: blur(20px) !important;
@@ -105,39 +49,19 @@
   color: white !important;
 }
 
-/* Theater theme specific colors */
 .theater-accent {
-  background-color: #b45309; /* amber-700 */
+  background-color: #b45309;
   color: white;
 }
 
 .theater-action {
-  background-color: #d97706; /* amber-600 */
+  background-color: #d97706;
   color: white;
 }
 .theater-action:hover {
-  background-color: #b45309; /* amber-700 */
+  background-color: #b45309;
 }
 
-/* Tabs styling for consistent theming */
-.tabs-themed .tabs-list {
-  background-color: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-.tabs-themed .tabs-trigger {
-  color: white;
-}
-
-.tabs-themed .tabs-trigger[data-state="active"] {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-}
-
-/* Input styling for consistency with glassmorphism theme */
 .input-themed {
   background-color: rgba(255, 255, 255, 0.05) !important;
   backdrop-filter: blur(12px) !important;
@@ -157,34 +81,33 @@
   color: rgba(255, 255, 255, 0.6) !important;
 }
 
-/* Themed Top Bar for navigation */
 .themed-top-bar {
-  background-color: hsl(var(--card) / 0.85); /* Semi-opaque card background */
-  backdrop-filter: blur(8px); /* Background blur */
-  -webkit-backdrop-filter: blur(8px); /* Safari */
-  padding: 0.75rem 1rem; /* Equivalent to py-3 px-4 */
+  background-color: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid hsl(var(--border));
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: sticky;
   top: 0;
-  z-index: 50; /* Ensure it's above other content */
-  border-radius: 0 0 var(--radius) var(--radius); /* Rounded bottom corners */
+  z-index: 50;
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .themed-top-bar-title {
-  font-size: 1.125rem; /* text-lg */
-  font-weight: 600; /* font-semibold */
+  font-size: 1.125rem;
+  font-weight: 600;
   color: hsl(var(--foreground));
 }
 
 .themed-back-button {
   background-color: transparent;
   color: hsl(var(--foreground));
-  padding: 0.5rem; /* p-2 */
+  padding: 0.5rem;
   border-radius: var(--radius);
-  margin-right: 0.5rem; /* mr-2 */
+  margin-right: 0.5rem;
 }
 
 .themed-back-button:hover {
@@ -192,10 +115,9 @@
 }
 
 .themed-top-bar-placeholder {
-  width: 2.5rem; /* Roughly the width of the back button + margin */
+  width: 2.5rem;
 }
 
-/* Select component styling for glassmorphism theme */
 [data-radix-select-trigger] {
   background-color: rgba(255, 255, 255, 0.05) !important;
   backdrop-filter: blur(20px) !important;
@@ -241,7 +163,6 @@
   outline: none !important;
 }
 
-/* Prevent body scroll when select is open */
 body[data-scroll-locked] {
   overflow: hidden !important;
   padding-right: 0 !important;

@@ -1,37 +1,10 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ThemedPageWrapper, PrimaryButton, OutlineButton, ThemedCard } from "@/components/ThemedComponents";
+import { Megaphone } from "lucide-react";
 import { getAnnouncements, Announcement } from "@/lib/api";
 import { UniversalPageLayout } from "@/components/UniversalPageLayout";
 import { BlurContainer, BlurCard, BlurActionButton } from "@/components/UniversalBlurComponents";
 
-// Mock data for information sections
-const infoSections = [
-	{
-		id: "student-government",
-		title: "Student Government",
-		description:
-			"Meet your student government representatives and learn about their roles in representing your voice at school.",
-		image: "https://images.squarespace-cdn.com/content/v1/57be4dc6f5e231e5516f7e44/1605373317776-D6XRQQFN594G6IUWBECK/StudentCouncil.png",
-		path: "/information/elections",
-		color: "bg-amber-100/90 border-amber-300",
-		iconColor: "text-amber-700",
-	},
-	{
-		id: "clubs",
-		title: "Clubs",
-		description:
-			"Join one of our many academic, social, and special interest clubs.",
-		image: "https://www.northnationmedia.com/wp-content/uploads/2023/10/school-clubs-1200x849.png",
-		path: "/information/clubs",
-		color: "bg-rose-100/90 border-rose-300",
-		iconColor: "text-rose-800",
-	},
-];
-
-// Icon components
 const StudentGovernmentIcon = () => (
 	<svg
 		className="h-6 w-6"
@@ -48,7 +21,6 @@ const StudentGovernmentIcon = () => (
 		/>
 	</svg>
 );
-
 
 const ClubsIcon = () => (
 	<svg
@@ -67,24 +39,34 @@ const ClubsIcon = () => (
 	</svg>
 );
 
-// Get icon based on section ID
-const getIcon = (sectionId: string) => {
-	switch (sectionId) {
-		case "student-government":
-			return <StudentGovernmentIcon />;
-		case "clubs":
-			return <ClubsIcon />;
-		default:
-			return null;
-	}
-};
+const infoSections = [
+	{
+		id: "student-government",
+		title: "Student Government",
+		description:
+			"Meet your student government representatives and learn about their roles in representing your voice at school.",
+		image: "https://images.squarespace-cdn.com/content/v1/57be4dc6f5e231e5516f7e44/1605373317776-D6XRQQFN594G6IUWBECK/StudentCouncil.png",
+		path: "/information/elections",
+		iconColor: "text-amber-700",
+		Icon: StudentGovernmentIcon,
+	},
+	{
+		id: "clubs",
+		title: "Clubs",
+		description:
+			"Join one of our many academic, social, and special interest clubs.",
+		image: "https://www.northnationmedia.com/wp-content/uploads/2023/10/school-clubs-1200x849.png",
+		path: "/information/clubs",
+		iconColor: "text-rose-800",
+		Icon: ClubsIcon,
+	},
+];
 
 export default function Information() {
 	const [, setLocation] = useLocation();
 	const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 	const [loading, setLoading] = useState(true);
 
-	// Fetch announcements from database
 	useEffect(() => {
 		const fetchAnnouncements = async () => {
 			try {
@@ -92,18 +74,16 @@ export default function Information() {
 				setAnnouncements(fetchedAnnouncements);
 			} catch (error) {
 				console.error('Failed to fetch announcements:', error);
-				// Fallback to empty array if fetch fails
 				setAnnouncements([]);
 			} finally {
 				setLoading(false);
 			}
 		};
-		
+
 		fetchAnnouncements();
 	}, []);
 
 	const handleNavigate = (path: string) => {
-		// Set referrer for proper back navigation
 		sessionStorage.setItem('info-referrer', '/information');
 		setLocation(path);
 	};
@@ -112,9 +92,8 @@ export default function Information() {
 		<UniversalPageLayout pageType="information" title="School Information">
 			{({ contentVisible }) => (
 				<>
-					{/* Important Announcements */}
 					<div>
-						<BlurContainer contentVisible={contentVisible} delay="200ms" className="p-6">
+						<BlurContainer contentVisible={contentVisible} delay="200ms" className="p-4 sm:p-6">
 							{loading ? (
 								<div className="text-center py-8 text-gray-400">
 									<div className="animate-spin h-8 w-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-2"></div>
@@ -123,24 +102,24 @@ export default function Information() {
 							) : announcements.length > 0 ? (
 								<div className="space-y-4">
 									{announcements.map((announcement) => (
-										<div 
-											key={announcement._id} 
+										<div
+											key={announcement._id}
 											className={`p-4 rounded-lg border ${
-												announcement.priority === 'high' 
-													? 'border-red-400/50 bg-red-500/20' 
+												announcement.priority === 'high'
+													? 'border-red-400/50 bg-red-500/20'
 													: announcement.priority === 'medium'
 													? 'border-amber-400/50 bg-amber-500/20'
 													: 'border-blue-400/50 bg-blue-500/20'
 											}`}
 										>
-											<div className="flex justify-between items-start">
-												<h3 className="font-semibold text-white">{announcement.title}</h3>
-												<span className="text-sm text-gray-300">{new Date(announcement.date).toLocaleDateString()}</span>
+											<div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+												<h3 className="font-semibold text-white break-words">{announcement.title}</h3>
+												<span className="text-sm text-gray-300 whitespace-nowrap">{new Date(announcement.date).toLocaleDateString()}</span>
 											</div>
-											<p className="text-sm mt-2 text-gray-200">{announcement.content}</p>
+											<p className="text-sm mt-2 text-gray-200 break-words">{announcement.content}</p>
 											{announcement.priority === 'high' && (
 												<div className="mt-2 flex items-center text-red-400 text-sm">
-													<svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<svg className="h-4 w-4 mr-1 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
 													</svg>
 													Important Announcement
@@ -151,7 +130,7 @@ export default function Information() {
 								</div>
 							) : (
 								<div className="text-center py-8 text-gray-400">
-									<div className="mb-2">📢</div>
+									<Megaphone className="h-8 w-8 mx-auto mb-2" aria-hidden="true" />
 									No announcements available at this time.
 								</div>
 							)}
@@ -160,7 +139,6 @@ export default function Information() {
 
 					<div className="h-8"></div>
 
-					{/* Information Sections */}
 					<div>
 						<h2 className="text-2xl font-bold text-white mb-6">
 							Explore School Information
@@ -179,9 +157,9 @@ export default function Information() {
 										<div
 											className={`absolute top-4 right-4 ${section.iconColor} bg-white/5 border border-white/10 shadow-2xl rounded-full p-2`}
 										>
-											{getIcon(section.id)}
+											<section.Icon />
 										</div>
-										<h3 className="text-lg font-semibold text-white">
+										<h3 className="text-lg font-semibold text-white pr-14 break-words">
 											{section.title}
 										</h3>
 										<p className="text-sm text-gray-300 mt-2">
@@ -193,9 +171,11 @@ export default function Information() {
 											<img
 												src={section.image}
 												alt={section.title}
+												loading="lazy"
 												className="w-full h-full object-cover opacity-90"
 												onError={(e) => {
-													e.currentTarget.src = `https://via.placeholder.com/300x200?text=${section.title}`;
+													e.currentTarget.onerror = null;
+													e.currentTarget.style.display = 'none';
 												}}
 											/>
 										</div>
@@ -204,7 +184,7 @@ export default function Information() {
 										<BlurActionButton
 											contentVisible={contentVisible}
 											onClick={() => handleNavigate(section.path)}
-											className="w-full py-3 px-4 font-semibold"
+											className="w-full min-h-11 py-3 px-4 font-semibold justify-center"
 										>
 											Explore {section.title}
 										</BlurActionButton>

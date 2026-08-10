@@ -7,11 +7,12 @@ import { sessionConfig } from "./auth";
 
 const app = express();
 
-// Early request size check
+app.set('trust proxy', 1);
+
 app.use((req, res, next) => {
   const contentLength = parseInt(req.headers['content-length'] || '0');
-  const maxSize = 50 * 1024 * 1024; // 50MB
-  
+  const maxSize = 50 * 1024 * 1024;
+
   if (contentLength > maxSize) {
     console.error(`Request too large: ${contentLength} bytes (max: ${maxSize})`);
     return res.status(413).json({
@@ -20,11 +21,10 @@ app.use((req, res, next) => {
       receivedSize: `${Math.round(contentLength / 1024 / 1024)}MB`
     });
   }
-  
+
   next();
 });
 
-// Configure body parsing with size limits, but skip multipart data (handled by multer)
 app.use('/api/upload', (req, res, next) => {
   console.log(`Upload request: ${req.headers['content-length']} bytes`);
   next();
@@ -65,16 +65,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Connect to MongoDB
   await connectWithRetry();
   await connectDB();
-  
+
   const server = await registerRoutes(app);
 
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    
+
     console.error('Global error handler:', {
       url: req.url,
       method: req.method,
@@ -83,30 +82,22 @@ app.use((req, res, next) => {
       stack: err.stack
     });
 
-    // Always return JSON for API requests
     if (req.path.startsWith('/api/')) {
-      return res.status(status).json({ 
+      return res.status(status).json({
         message,
         error: err.code || 'UNKNOWN_ERROR'
       });
     }
-    
+
     res.status(status).json({ message });
-    throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = 5005;
   server.listen({
     port,

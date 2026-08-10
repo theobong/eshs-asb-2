@@ -14,6 +14,12 @@ interface EmailOptions {
   }>;
 }
 
+interface TicketTypeSummary {
+  name?: string | null;
+  price?: number | null;
+  description?: string | null;
+}
+
 interface FormSubmissionEmailData {
   eventName: string;
   studentName: string;
@@ -27,11 +33,7 @@ interface FormSubmissionEmailData {
     fileUrl: string;
     fileType: string;
   }>;
-  ticketType?: {
-    name: string;
-    price: number;
-    description: string;
-  };
+  ticketType?: TicketTypeSummary | null;
 }
 
 interface ApprovalEmailData {
@@ -40,11 +42,7 @@ interface ApprovalEmailData {
   ticketPurchaseUrl: string;
   quantity: number;
   totalAmount: number;
-  ticketType?: {
-    name: string;
-    price: number;
-    description: string;
-  };
+  ticketType?: TicketTypeSummary | null;
 }
 
 interface RejectionEmailData {
@@ -75,38 +73,32 @@ class EmailService {
   private transporter: nodemailer.Transporter;
 
   constructor() {
-    // Get email addresses from environment variables or use defaults
     this.fromEmail = process.env.FROM_EMAIL || 'noreply@eshsasb.org';
     this.adminEmail = process.env.ADMIN_EMAIL || 'theo@bongbong.com';
 
-    // Parse comma-separated list of form notification emails
     const notificationEmailsStr = process.env.FORM_NOTIFICATION_EMAILS || '';
     this.formNotificationEmails = notificationEmailsStr
       .split(',')
       .map(email => email.trim())
       .filter(email => email.length > 0);
 
-    // Configure transporter for local Postfix only
     this.transporter = nodemailer.createTransport({
       host: 'localhost',
       port: 25,
       secure: false,
       auth: {
-        user: '', // No auth needed for local Postfix
+        user: '',
         pass: ''
       },
-      // Options for local Postfix delivery
       tls: {
         rejectUnauthorized: false
       },
-      // Additional Postfix options
       pool: true,
       maxConnections: 5,
       maxMessages: 100
     });
 
-    // Verify connection configuration
-    this.transporter.verify((error, success) => {
+    this.transporter.verify((error) => {
       if (error) {
         console.error('Email transporter configuration error:', error);
       } else {
@@ -199,11 +191,7 @@ class EmailService {
 </html>
     `;
 
-    const emailAttachments = attachments?.map(att => ({
-      filename: att.filename,
-      content: att.content,
-      contentType: att.contentType
-    })) || [];
+    const emailAttachments = attachments ?? [];
 
     await this.sendEmail({
       to,
@@ -258,20 +246,14 @@ class EmailService {
 </html>
     `;
 
-    const emailAttachments = attachments?.map(att => ({
-      filename: att.filename,
-      content: att.content,
-      contentType: att.contentType
-    })) || [];
+    const emailAttachments = attachments ?? [];
 
-    // Send to all form notification emails
     const recipients = this.formNotificationEmails.length > 0
       ? this.formNotificationEmails
-      : [this.adminEmail]; // Fallback to admin email if no notification emails configured
+      : [this.adminEmail];
 
     console.log(`EmailService: Sending form notification to ${recipients.length} recipients: ${recipients.join(', ')}`);
 
-    // Send email to each recipient
     for (const recipient of recipients) {
       await this.sendEmail({
         to: recipient,
@@ -451,7 +433,6 @@ class EmailService {
     console.log(`EmailService: Purchase confirmation email sent successfully to ${to}`);
   }
 
-  // Test method for checking email functionality
   async sendTestEmail(to: string): Promise<void> {
     const html = `
 <!DOCTYPE html>

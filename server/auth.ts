@@ -6,26 +6,29 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Session configuration
-const SESSION_SECRET = process.env.SESSION_SECRET || 'eshs-asb-2024-admin-session-secret-' + Date.now();
+const isProduction = process.env.NODE_ENV === 'production';
 
-// Create MongoDB session store
+if (isProduction && !process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET must be set in production');
+}
+
+const SESSION_SECRET = process.env.SESSION_SECRET || 'eshs-asb-local-development-session-secret';
+
 const mongoStore = MongoStore.create({
   mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/eshs-asb',
   collectionName: 'sessions',
-  ttl: 30 * 24 * 60 * 60, // 30 days TTL (in seconds for MongoStore)
-  touchAfter: 24 * 3600, // Lazy session update (only update every 24 hours)
-  autoRemove: 'native', // Let MongoDB handle expired session removal
-  stringify: false // Store session data as BSON instead of JSON string
+  ttl: 30 * 24 * 60 * 60,
+  touchAfter: 24 * 3600,
+  autoRemove: 'native',
+  stringify: false
 });
 
-// Add error handling for the store
 mongoStore.on('error', (error) => {
   console.error('MongoDB session store error:', error);
 });
 
 mongoStore.on('connected', () => {
-  console.log('✅ MongoDB session store connected');
+  console.log('MongoDB session store connected');
 });
 
 export const sessionConfig = session({
@@ -34,15 +37,14 @@ export const sessionConfig = session({
   saveUninitialized: false,
   store: mongoStore,
   cookie: {
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days (in milliseconds)
+    maxAge: 30 * 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: false, // Allow HTTP for development/local deployment
+    secure: 'auto',
     sameSite: 'lax'
   },
-  name: 'eshs.admin.session' // Custom session name
+  name: 'eshs.admin.session'
 });
 
-// Extend session type
 declare module 'express-session' {
   interface SessionData {
     isAuthenticated: boolean;
@@ -50,18 +52,15 @@ declare module 'express-session' {
   }
 }
 
-// Hash the admin passwords on startup
 const ADMIN_PASSWORD_HASH = bcrypt.hashSync(
   process.env.ADMIN_PASSWORD || 'admin',
   10
 );
 
-// Second admin password (optional)
 const ADMIN_PASSWORD_2_HASH = process.env.ADMIN_PASSWORD_2
   ? bcrypt.hashSync(process.env.ADMIN_PASSWORD_2, 10)
   : null;
 
-// Authentication middleware
 export const requireAdminAuth = (req: Request, res: Response, next: NextFunction) => {
   if (req.session.adminAuthenticated) {
     return next();
@@ -69,7 +68,6 @@ export const requireAdminAuth = (req: Request, res: Response, next: NextFunction
   res.status(401).json({ error: 'Authentication required' });
 };
 
-// Login endpoint handler
 export const handleAdminLogin = async (req: Request, res: Response) => {
   const { password } = req.body;
 
@@ -77,7 +75,6 @@ export const handleAdminLogin = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Password is required' });
   }
 
-  // Check against both admin passwords
   const isValidPassword1 = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
   const isValidPassword2 = ADMIN_PASSWORD_2_HASH
     ? await bcrypt.compare(password, ADMIN_PASSWORD_2_HASH)
@@ -85,13 +82,12 @@ export const handleAdminLogin = async (req: Request, res: Response) => {
   const isValid = isValidPassword1 || isValidPassword2;
 
   if (isValid) {
-    // Regenerate session ID for security
     req.session.regenerate((err) => {
       if (err) {
         console.error('Session regeneration error:', err);
         return res.status(500).json({ error: 'Failed to create session' });
       }
-      
+
       req.session.adminAuthenticated = true;
       req.session.save((err) => {
         if (err) {
@@ -107,7 +103,6 @@ export const handleAdminLogin = async (req: Request, res: Response) => {
   }
 };
 
-// Logout endpoint handler
 export const handleAdminLogout = (req: Request, res: Response) => {
   if (req.session.adminAuthenticated) {
     req.session.destroy((err) => {
@@ -124,12 +119,10 @@ export const handleAdminLogout = (req: Request, res: Response) => {
   }
 };
 
-// Check auth status endpoint handler
 export const checkAdminAuth = (req: Request, res: Response) => {
   const authenticated = !!req.session.adminAuthenticated;
-  console.log(`Auth check: ${authenticated ? 'authenticated' : 'not authenticated'}`);
-  
-  res.json({ 
+
+  res.json({
     authenticated,
     sessionId: req.sessionID,
     expiresAt: req.session.cookie?.expires || null

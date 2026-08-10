@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ThemedPageWrapper, ThemedCard, PrimaryButton, OutlineButton } from "@/components/ThemedComponents";
+import { PrimaryButton } from "@/components/ThemedComponents";
 import { UniversalPageLayout } from "@/components/UniversalPageLayout";
-import { BlurContainer, BlurCard, BlurActionButton } from "@/components/UniversalBlurComponents";
+import { BlurContainer, BlurActionButton } from "@/components/UniversalBlurComponents";
 import { getEvents, createFormSubmission, type Event } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
+import { Check, Ticket } from "lucide-react";
 
-// Types for form data
 interface FormData {
   studentId: File | null;
   customForms: { [key: string]: File | null };
@@ -21,7 +21,6 @@ interface FormData {
   notes: string;
 }
 
-// Types for form upload status
 interface FormUploadStatus {
   uploading: boolean;
   success: boolean;
@@ -29,25 +28,20 @@ interface FormUploadStatus {
   message: string;
 }
 
-interface CartItem {
-  id: number | string;
-  name: string;
-  price: number;
-  image?: string;
-  quantity: number;
-  size?: string;
-  color?: string;
-  type?: 'product' | 'event';
-  eventId?: string;
+interface UploadedForm {
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
 }
+
+const MAX_TICKETS_PER_ORDER = 10;
 
 export default function EventDetails() {
   const [, setLocation] = useWouterLocation();
-  const [eventId, setEventId] = useState<string>("");
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTicketType, setSelectedTicketType] = useState<number | null>(null); // Index of selected ticket type
+  const [selectedTicketType, setSelectedTicketType] = useState<number | null>(null);
   const [formData, setFormData] = useState<FormData>({
     studentId: null,
     customForms: {},
@@ -65,14 +59,11 @@ export default function EventDetails() {
   });
   const { addToCart } = useCart();
 
-  // File input refs
   const fileInputRefs = {
     studentId: useRef<HTMLInputElement>(null),
   };
 
-  // Custom forms refs object
   const customFormRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
-
 
   useEffect(() => {
     const loadEventData = async () => {
@@ -80,18 +71,15 @@ export default function EventDetails() {
         setLoading(true);
         setError(null);
 
-        // Extract event ID from the URL
         const currentPath = window.location.pathname;
         const matches = currentPath.match(/\/activities\/details\/(.+)$/);
-        
+
         if (matches) {
           const id = matches[1];
-          setEventId(id);
-          
-          // Fetch all events and find the specific one
+
           const eventsData = await getEvents();
           const selectedEvent = eventsData.find(e => e._id === id);
-            if (selectedEvent) {
+          if (selectedEvent) {
             setEvent(selectedEvent);
           } else {
             setError('Event not found');
@@ -115,81 +103,47 @@ export default function EventDetails() {
   };
   const formatDate = (date: Date | string) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return dateObj.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
   };
 
-  const getAvailabilityStatus = (maxTickets?: number) => {
-    if (!maxTickets) return { status: "Available", color: "bg-green-500/20 text-green-200 border-green-500/30" };
-    
-    // For now, assume tickets are available since we don't track sold tickets yet
-    const remaining = maxTickets; // This would be calculated from actual sales in a real system
-    const percentage = (remaining / maxTickets) * 100;
-    
-    if (percentage > 50) return { status: "Available", color: "bg-green-500/20 text-green-200 border-green-500/30" };
-    if (percentage > 20) return { status: "Limited", color: "bg-yellow-500/20 text-yellow-200 border-yellow-500/30" };
-    if (percentage > 0) return { status: "Few Left", color: "bg-red-500/20 text-red-200 border-red-500/30" };
-    return { status: "Sold Out", color: "bg-gray-500/20 text-gray-200 border-gray-500/30" };
-  };
-
-  // Helper function to get the selected ticket type's price, or 0 if no tickets
-  const getEventPrice = () => {
-    if (!event?.ticketTypes || event.ticketTypes.length === 0 || selectedTicketType === null) return 0;
-    const selectedTicket = event.ticketTypes[selectedTicketType];
-    return selectedTicket ? selectedTicket.price : 0;
-  };
-
-  // Helper function to get max tickets from the selected ticket type
-  const getMaxTickets = () => {
-    if (!event?.ticketTypes || event.ticketTypes.length === 0 || selectedTicketType === null) return undefined;
-    const selectedTicket = event.ticketTypes[selectedTicketType];
-    return selectedTicket ? selectedTicket.maxTickets : undefined;
-  };
-
-  // Helper function to get the selected ticket type details
   const getSelectedTicketType = () => {
     if (!event?.ticketTypes || event.ticketTypes.length === 0 || selectedTicketType === null) return null;
-    return event.ticketTypes[selectedTicketType];
+    return event.ticketTypes[selectedTicketType] ?? null;
   };
 
-  // Helper function to check if a ticket type is available (not sold out)
-  const isTicketTypeAvailable = (maxTickets: number) => {
-    // For now, assume all tickets are available since we don't track sold tickets yet
-    // In a real system, this would check: soldTickets < maxTickets
-    const soldTickets = 0; // This would come from the database
-    return soldTickets < maxTickets;
-  };
+  const getEventPrice = () => getSelectedTicketType()?.price ?? 0;
 
-  // Get available ticket types (filter out sold out ones)
-  const getAvailableTicketTypes = () => {
-    if (!event?.ticketTypes) return [];
-    return event.ticketTypes.filter(ticket => isTicketTypeAvailable(ticket.maxTickets));
-  };
+  const getMaxTickets = () => getSelectedTicketType()?.maxTickets;
+
+  const getMaxAllowedQuantity = (maxTickets?: number) =>
+    maxTickets && maxTickets > 0 ? Math.min(MAX_TICKETS_PER_ORDER, maxTickets) : MAX_TICKETS_PER_ORDER;
+
   const handleQuantityChange = (quantity: number) => {
-    if (event) {
-      // For now, allow up to 10 tickets or maxTickets if specified
-      const maxTickets = getMaxTickets();
-      const maxAllowed = maxTickets ? Math.min(10, maxTickets) : 10;
-      setFormData(prev => ({
-        ...prev,
-        quantity: Math.max(1, Math.min(quantity, maxAllowed))
-      }));
-    }
-  };
-
-  const handleFileUpload = (field: keyof FormData, file: File | null) => {
-    if (field === 'customForms') {
-      // This won't be called directly for customForms
-      return;
-    }
-    
+    const maxAllowed = getMaxAllowedQuantity(getMaxTickets());
     setFormData(prev => ({
       ...prev,
-      [field]: file
+      quantity: Math.max(1, Math.min(quantity, maxAllowed))
+    }));
+  };
+
+  const handleSelectTicketType = (index: number) => {
+    setSelectedTicketType(index);
+    const maxAllowed = getMaxAllowedQuantity(event?.ticketTypes?.[index]?.maxTickets);
+    setFormData(prev => ({
+      ...prev,
+      quantity: Math.max(1, Math.min(prev.quantity, maxAllowed))
+    }));
+  };
+
+  const handleStudentIdUpload = (file: File | null) => {
+    setFormData(prev => ({
+      ...prev,
+      studentId: file
     }));
   };
 
@@ -203,7 +157,6 @@ export default function EventDetails() {
     }));
   };
 
-  // Helper to validate email format
   const isValidEmail = (email: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
@@ -211,7 +164,6 @@ export default function EventDetails() {
   const handleSubmitApproval = async () => {
     if (!event) return;
 
-    // Check if ticket type is selected (required for events with ticket types)
     if (event.ticketTypes && event.ticketTypes.length > 0 && selectedTicketType === null) {
       setUploadStatus({
         uploading: false,
@@ -222,7 +174,6 @@ export default function EventDetails() {
       return;
     }
 
-    // Form validation
     if (!formData.studentName.trim()) {
       setUploadStatus({
         uploading: false,
@@ -243,7 +194,6 @@ export default function EventDetails() {
       return;
     }
 
-    // Check required forms based on event settings
     if (event.requiredForms) {
       if (event.requiredForms.studentIdRequired && !formData.studentId) {
         setUploadStatus({
@@ -254,8 +204,7 @@ export default function EventDetails() {
         });
         return;
       }
-      
-      // Check custom forms
+
       if (event.requiredForms.customForms && event.requiredForms.customForms.length > 0) {
         for (const customForm of event.requiredForms.customForms) {
           if (customForm.required !== false && !formData.customForms[customForm.name]) {
@@ -280,10 +229,8 @@ export default function EventDetails() {
     });
 
     try {
-      // Upload all files to the server first
-      const uploadedForms = [];
+      const uploadedForms: UploadedForm[] = [];
 
-      // Collect all files to upload
       const filesToUpload: File[] = [];
       const fileLabels: string[] = [];
 
@@ -299,7 +246,6 @@ export default function EventDetails() {
         }
       }
 
-      // Upload files to server
       if (filesToUpload.length > 0) {
         const uploadFormData = new FormData();
         filesToUpload.forEach(file => {
@@ -312,13 +258,17 @@ export default function EventDetails() {
         });
 
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload forms');
+          const failureText = await uploadResponse.text();
+          throw new Error(failureText || 'We could not upload your forms. Please check the files and try again.');
         }
 
-        const uploadedFiles = await uploadResponse.json();
+        const uploadedFiles: UploadedForm[] = await uploadResponse.json();
 
-        // Map uploaded files to form labels
-        uploadedFiles.forEach((uploadedFile: { fileName: string; fileUrl: string; fileType: string }, index: number) => {
+        if (!Array.isArray(uploadedFiles) || uploadedFiles.length !== filesToUpload.length) {
+          throw new Error('Some of your forms did not upload. Please try again.');
+        }
+
+        uploadedFiles.forEach((uploadedFile, index) => {
           uploadedForms.push({
             fileName: fileLabels[index],
             fileUrl: uploadedFile.fileUrl,
@@ -327,14 +277,13 @@ export default function EventDetails() {
         });
       }
 
-      // Create form submission record
       const selectedTicket = getSelectedTicketType();
       await createFormSubmission({
         eventId: event._id,
         studentName: formData.studentName,
         email: formData.email,
         forms: uploadedForms,
-        quantity: 1, // Always 1 for approval requests
+        quantity: 1,
         totalAmount: selectedTicket ? selectedTicket.price * 1 : 0,
         notes: formData.notes,
         status: 'pending',
@@ -345,15 +294,13 @@ export default function EventDetails() {
         } : undefined
       });
 
-      // Show success message
       setUploadStatus({
         uploading: false,
         success: true,
         error: false,
         message: 'Your forms have been submitted successfully. You will receive an email when your request is approved.'
       });
-      
-      // Reset form data
+
       setFormData({
         studentId: null,
         customForms: {},
@@ -364,29 +311,34 @@ export default function EventDetails() {
       });
       setSelectedTicketType(null);
 
-      // User will click button to redirect
-    } catch (error) {
-      console.error('Form submission failed:', error);
+    } catch (submitError) {
+      console.error('Form submission failed:', submitError);
       setUploadStatus({
         uploading: false,
         success: false,
         error: true,
-        message: 'Failed to submit forms. Please try again.'
+        message: submitError instanceof Error && submitError.message
+          ? submitError.message
+          : 'Failed to submit forms. Please try again.'
       });
+    } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDirectPurchase = () => {
     if (!event) return;
-    
-    // Check if ticket type is selected (required for events with ticket types)
+
     if (event.ticketTypes && event.ticketTypes.length > 0 && selectedTicketType === null) {
-      alert('Please select a ticket type before adding to cart');
+      setUploadStatus({
+        uploading: false,
+        success: false,
+        error: true,
+        message: 'Please select a ticket type before adding to cart'
+      });
       return;
     }
-    
-    // Add to cart using CartContext
+
     const selectedTicket = getSelectedTicketType();
     const cartItem = {
       id: event._id,
@@ -396,7 +348,7 @@ export default function EventDetails() {
       type: 'event' as const,
       eventId: event._id,
       ticketType: selectedTicket?.name,
-      image: "/api/placeholder/300/300" // Default image for events
+      image: "/api/placeholder/300/300"
     };
 
     addToCart(cartItem);
@@ -404,15 +356,28 @@ export default function EventDetails() {
     setLocation("/shop/cart");
   };
 
+  if (loading) {
+    return (
+      <UniversalPageLayout pageType="information" title="Event Details" backButtonText="Back to Activities" onBackClick={handleBackClick}>
+        {({ contentVisible }) => (
+          <BlurContainer contentVisible={contentVisible} className="p-6 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400 mx-auto mb-4"></div>
+            <p className="text-white">Loading event...</p>
+          </BlurContainer>
+        )}
+      </UniversalPageLayout>
+    );
+  }
+
   if (!event) {
     return (
       <UniversalPageLayout pageType="information" title="Event Not Found" backButtonText="Back to Activities" onBackClick={handleBackClick}>
         {({ contentVisible }) => (
-          <BlurContainer contentVisible={contentVisible} className="min-h-screen flex items-center justify-center">
+          <BlurContainer contentVisible={contentVisible} className="p-6 flex items-center justify-center">
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-white mb-4">Event Not Found</h1>
-              <p className="text-gray-300 mb-6">The event you're looking for doesn't exist.</p>
-              <BlurActionButton 
+              <h1 className="text-xl sm:text-2xl font-bold text-white mb-4 break-words">Event Not Found</h1>
+              <p className="text-gray-300 mb-6">{error ?? "The event you're looking for doesn't exist."}</p>
+              <BlurActionButton
                 contentVisible={contentVisible}
                 onClick={handleBackClick}
               >
@@ -425,15 +390,18 @@ export default function EventDetails() {
     );
   }
 
-  // No longer needed since we removed the availability card
-  // const availability = getAvailabilityStatus(getMaxTickets());
+  const availableTicketTypes = (event.ticketTypes ?? [])
+    .map((ticket, index) => ({ ticket, index }))
+    .filter(({ ticket }) => ticket.maxTickets > 0);
+  const hasTicketTypes = (event.ticketTypes?.length ?? 0) > 0;
+  const needsTicketTypeSelection = hasTicketTypes && selectedTicketType === null;
+  const maxQuantity = getMaxAllowedQuantity(getMaxTickets());
 
   return (
     <UniversalPageLayout pageType="information" title="Event Details" backButtonText="Back" onBackClick={handleBackClick}>
       {({ contentVisible }) => (
-        <div className="max-w-4xl mx-auto px-8">
-          {/* Event Details */}
-          <div 
+        <div className="max-w-4xl mx-auto px-4 sm:px-8">
+          <div
             className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-2xl mb-8 transform transition-all duration-500 ease-out"
             style={{
               opacity: contentVisible ? 1 : 0,
@@ -441,12 +409,11 @@ export default function EventDetails() {
               transitionDelay: '200ms'
             }}
           >
-            <div className="p-8">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-4">
-                    <h2 className="text-3xl font-bold text-white">{event.title}</h2>
+            <div className="p-5 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white break-words">{event.title}</h2>
                     {event.requiresApproval && (
                       <Badge variant="outline" className="bg-orange-500/20 text-orange-200 border-orange-500/30">
                         Requires Approval
@@ -454,44 +421,41 @@ export default function EventDetails() {
                     )}
                   </div>
                 </div>
-                <Badge variant="outline" className="ml-4 text-lg px-3 py-1">
+                <Badge variant="outline" className="self-start text-base sm:text-lg px-3 py-1 whitespace-nowrap">
                   {event.category}
                 </Badge>
               </div>
 
-              {/* Event Info */}
               <div className="space-y-4 mb-6">
-                <div className="flex items-center text-lg">
-                  <svg className="w-6 h-6 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-start text-base sm:text-lg">
+                  <svg className="w-6 h-6 mr-3 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="text-gray-200">{formatDate(event.date)}</span>
+                  <span className="text-gray-200 break-words">{formatDate(event.date)}</span>
                 </div>
-                <div className="flex items-center text-lg">
-                  <svg className="w-6 h-6 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-start text-base sm:text-lg">
+                  <svg className="w-6 h-6 mr-3 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="text-gray-200">{event.time}</span>
+                  <span className="text-gray-200 break-words">{event.time}</span>
                 </div>
-                <div className="flex items-center text-lg">
-                  <svg className="w-6 h-6 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-start text-base sm:text-lg">
+                  <svg className="w-6 h-6 mr-3 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  <span className="text-gray-200">{event.location}</span>
+                  <span className="text-gray-200 break-words">{event.location}</span>
                 </div>
               </div>
 
-              {/* Description - Now prominently placed after location */}
               <div className="mb-6">
-                <p className="text-gray-300 text-lg leading-relaxed">{event.description}</p>
+                <p className="text-gray-300 text-base sm:text-lg leading-relaxed break-words">{event.description}</p>
               </div>
             </div>
           </div>
 
-          {/* Ticket Selection */}
-          {event.ticketTypes && event.ticketTypes.length > 0 && (
-            <div 
+          {hasTicketTypes && (
+            <div
               className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-2xl mb-8 transform transition-all duration-500 ease-out"
               style={{
                 opacity: contentVisible ? 1 : 0,
@@ -503,40 +467,38 @@ export default function EventDetails() {
                 <h3 className="text-lg font-bold text-white mb-3">
                   Select Ticket Type <span className="text-red-400">*</span>
                 </h3>
-                {getAvailableTicketTypes().length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {getAvailableTicketTypes().map((ticket, availableIndex) => {
-                      const originalIndex = event.ticketTypes!.findIndex(t => t === ticket);
-                      return (
-                        <div 
-                          key={originalIndex} 
-                          className={`p-2 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                            selectedTicketType === originalIndex 
-                              ? 'border-blue-400 bg-blue-500/10 shadow-lg transform scale-105' 
-                              : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
-                          }`}
-                          onClick={() => setSelectedTicketType(originalIndex)}
-                        >
-                          <div className="text-center">
-                            <div className="font-semibold text-white text-sm mb-1">{ticket.name}</div>
-                            <div className="text-xl font-bold text-green-400 mb-1">${ticket.price.toFixed(2)}</div>
-                            <div className="text-xs text-gray-300">{ticket.description}</div>
-                          </div>
+                {availableTicketTypes.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {availableTicketTypes.map(({ ticket, index }) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className={`w-full min-h-11 p-3 rounded-lg border-2 text-left transition-all duration-200 ${
+                          selectedTicketType === index
+                            ? 'border-blue-400 bg-blue-500/10 shadow-lg'
+                            : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
+                        }`}
+                        onClick={() => handleSelectTicketType(index)}
+                      >
+                        <div className="text-center">
+                          <div className="font-semibold text-white text-sm mb-1 break-words">{ticket.name}</div>
+                          <div className="text-xl font-bold text-green-400 mb-1">${ticket.price.toFixed(2)}</div>
+                          <div className="text-xs text-gray-300 break-words">{ticket.description}</div>
                         </div>
-                      );
-                    })}
+                      </button>
+                    ))}
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <div className="text-4xl mb-2">🎫</div>
+                    <Ticket className="h-10 w-10 mx-auto mb-2 text-gray-400" />
                     <div className="text-xl font-bold text-red-400 mb-1">SOLD OUT</div>
                     <div className="text-gray-400 text-sm">All ticket types for this event are currently sold out.</div>
                   </div>
                 )}
               </div>
             </div>
-          )}          {/* Purchase/Registration Section */}
-          <div 
+          )}
+          <div
             className="border-t border-white/10 pt-6 mt-6 transform transition-all duration-500 ease-out"
             style={{
               opacity: contentVisible ? 1 : 0,
@@ -545,21 +507,12 @@ export default function EventDetails() {
             }}
           >
             {event.requiresApproval ? (
-              // Direct approval form display (no card wrapper)
               <div>
-                <h3 className="text-2xl font-bold text-white mb-6">Approval Request Form</h3>
-                
-                {/* Full Screen Thank You Overlay - Moved outside of main content */}
-
-                {uploadStatus.error && (
-                  <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
-                    <p className="text-red-200">{uploadStatus.message}</p>
-                  </div>
-                )}
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-6">Approval Request Form</h3>
 
                 {!uploadStatus.success && (
-                  <div 
-                    className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-2xl p-6 transform transition-all duration-500 ease-out"
+                  <div
+                    className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-2xl p-4 sm:p-6 transform transition-all duration-500 ease-out"
                     style={{
                       opacity: contentVisible ? 1 : 0,
                       transform: contentVisible ? 'translateY(0px)' : 'translateY(20px)',
@@ -567,8 +520,7 @@ export default function EventDetails() {
                     }}
                   >
                     <form className="space-y-6">
-                      {/* Student Information */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="studentName" className="text-white mb-2 block">Student Name</Label>
                           <Input
@@ -576,7 +528,7 @@ export default function EventDetails() {
                             value={formData.studentName}
                             onChange={(e) => setFormData(prev => ({ ...prev, studentName: e.target.value }))}
                             placeholder="Enter your full name"
-                            className="bg-white/5 border-white/20 text-white"
+                            className="h-11 w-full bg-white/5 border-white/20 text-white"
                             required
                           />
                         </div>
@@ -588,29 +540,27 @@ export default function EventDetails() {
                             value={formData.email}
                             onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                             placeholder="Enter your email address"
-                            className="bg-white/5 border-white/20 text-white"
+                            className="h-11 w-full bg-white/5 border-white/20 text-white"
                             required
                           />
                         </div>
                       </div>
 
-
-                      {/* Required Forms Section */}
                       <div className="space-y-4">
-                        <h4 className="text-xl font-semibold text-white">Required Forms</h4>
-                        
-                        {/* Student ID */}
+                        <h4 className="text-lg sm:text-xl font-semibold text-white">Required Forms</h4>
+
                         {event.requiredForms?.studentIdRequired && (
                           <div>
-                            <Label htmlFor="studentId" className="text-white mb-2 block">
-                              Student ID {formData.studentId ? '✓' : '*'}
+                            <Label htmlFor="studentId" className="text-white mb-2 flex items-center gap-1">
+                              <span>Student ID</span>
+                              {formData.studentId ? <Check className="h-4 w-4 text-green-400" /> : <span>*</span>}
                             </Label>
                             <Input
                               id="studentId"
                               type="file"
                               ref={fileInputRefs.studentId}
-                              onChange={(e) => handleFileUpload('studentId', e.target.files?.[0] || null)}
-                              className="bg-white/5 border-white/20 text-white"
+                              onChange={(e) => handleStudentIdUpload(e.target.files?.[0] || null)}
+                              className="h-11 w-full bg-white/5 border-white/20 text-white file:text-white"
                               accept=".jpg,.jpeg,.png,.pdf"
                               required
                             />
@@ -618,30 +568,32 @@ export default function EventDetails() {
                           </div>
                         )}
 
-                        {/* Custom Forms */}
                         {event.requiredForms?.customForms && event.requiredForms.customForms.length > 0 && (
                           <div className="space-y-3">
                             {event.requiredForms.customForms.map((customForm, index) => (
                               <div key={index}>
-                                <Label htmlFor={`customForm_${index}`} className="text-white mb-2 block">
-                                  {customForm.name} {formData.customForms[customForm.name] ? '✓' : (customForm.required !== false ? '*' : '')}
+                                <Label htmlFor={`customForm_${index}`} className="text-white mb-2 flex items-center gap-1">
+                                  <span className="break-words">{customForm.name}</span>
+                                  {formData.customForms[customForm.name]
+                                    ? <Check className="h-4 w-4 flex-shrink-0 text-green-400" />
+                                    : (customForm.required !== false ? <span>*</span> : null)}
                                 </Label>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                   <Input
                                     id={`customForm_${index}`}
                                     type="file"
                                     ref={(el) => { customFormRefs.current[customForm.name] = el; }}
                                     onChange={(e) => handleCustomFileUpload(customForm.name, e.target.files?.[0] || null)}
-                                    className="bg-white/5 border-white/20 text-white"
+                                    className="h-11 w-full bg-white/5 border-white/20 text-white file:text-white"
                                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                                     required={customForm.required !== false}
                                   />
                                   {customForm.pdfUrl && (
-                                    <a 
-                                      href={customForm.pdfUrl} 
+                                    <a
+                                      href={customForm.pdfUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-blue-300 hover:text-blue-200 text-sm whitespace-nowrap"
+                                      className="text-blue-300 hover:text-blue-200 text-sm whitespace-nowrap py-2"
                                     >
                                       Download Template
                                     </a>
@@ -653,7 +605,6 @@ export default function EventDetails() {
                         )}
                       </div>
 
-                      {/* Notes */}
                       <div>
                         <Label htmlFor="notes" className="text-white mb-2 block">Additional Notes (optional)</Label>
                         <Textarea
@@ -666,12 +617,12 @@ export default function EventDetails() {
                         />
                       </div>
 
-                      {/* Submit Button */}
                       <div className="pt-2">
                         <PrimaryButton
+                          type="button"
                           onClick={handleSubmitApproval}
-                          disabled={isSubmitting || uploadStatus.success || (event.ticketTypes && event.ticketTypes.length > 0 && selectedTicketType === null)}
-                          className="w-full py-3 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={isSubmitting || uploadStatus.uploading || uploadStatus.success || needsTicketTypeSelection}
+                          className="w-full min-h-11 py-3 text-base sm:text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isSubmitting ? (
                             <>
@@ -681,11 +632,11 @@ export default function EventDetails() {
                               </svg>
                               Submitting...
                             </>
-                          ) : (event.ticketTypes && event.ticketTypes.length > 0 && selectedTicketType === null) ? 'Select Ticket Type First' : 'Submit for Approval'}
+                          ) : needsTicketTypeSelection ? 'Select Ticket Type First' : 'Submit for Approval'}
                         </PrimaryButton>
 
                         <p className="text-sm text-gray-400 mt-3">
-                          * Once submitted, your request will be reviewed by an administrator. 
+                          * Once submitted, your request will be reviewed by an administrator.
                           You will receive an email notification when your request is approved or denied.
                         </p>
                       </div>
@@ -694,9 +645,8 @@ export default function EventDetails() {
                 )}
               </div>
             ) : (
-              // Price/Quantity section for non-approval events
-              <div 
-                className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-2xl p-6 transform transition-all duration-500 ease-out"
+              <div
+                className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-2xl p-4 sm:p-6 transform transition-all duration-500 ease-out"
                 style={{
                   opacity: contentVisible ? 1 : 0,
                   transform: contentVisible ? 'translateY(0px)' : 'translateY(20px)',
@@ -705,50 +655,55 @@ export default function EventDetails() {
               >
                 <div className="flex flex-col md:flex-row gap-6">
                   <div className="flex-1 space-y-4">
-                    {/* Price and Availability */}
-                    <div className="flex items-center gap-4">
-                      <div className="text-3xl font-bold text-white">${getEventPrice().toFixed(2)}</div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="text-2xl sm:text-3xl font-bold text-white">${getEventPrice().toFixed(2)}</div>
                       {selectedTicketType !== null && (
-                        <Badge variant="outline" className="bg-green-500/20 text-green-200 border-green-500/30 ml-2 px-2 py-1">
+                        <Badge variant="outline" className="bg-green-500/20 text-green-200 border-green-500/30 px-2 py-1">
                           Available
                         </Badge>
                       )}
                     </div>
 
-                    {/* Quantity Selection */}
-                    <div className="flex items-center space-x-4">
-                      <label className="text-white">Quantity:</label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label htmlFor="ticketQuantity" className="text-white">Quantity:</label>
                       <div className="flex items-center">
                         <Button
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-9 w-9 bg-white/5 border-white/20 text-white"
+                          className="h-11 w-11 flex-shrink-0 bg-white/5 border-white/20 text-white"
                           onClick={() => handleQuantityChange(formData.quantity - 1)}
+                          disabled={formData.quantity <= 1}
+                          aria-label="Decrease quantity"
                         >
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                           </svg>
                         </Button>
                         <Input
+                          id="ticketQuantity"
                           type="number"
+                          inputMode="numeric"
                           value={formData.quantity}
                           onChange={(e) => {
-                            const value = parseInt(e.target.value);
+                            const value = parseInt(e.target.value, 10);
                             if (!isNaN(value)) {
                               handleQuantityChange(value);
                             }
                           }}
-                          className="w-16 text-center mx-2 bg-white/5 border-white/20 text-white"
-                          min="1"
-                          max={getMaxTickets() || 10}
+                          onBlur={() => handleQuantityChange(formData.quantity)}
+                          className="h-11 w-16 flex-shrink-0 text-center mx-2 bg-white/5 border-white/20 text-white"
+                          min={1}
+                          max={maxQuantity}
                         />
                         <Button
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-9 w-9 bg-white/5 border-white/20 text-white"
+                          className="h-11 w-11 flex-shrink-0 bg-white/5 border-white/20 text-white"
                           onClick={() => handleQuantityChange(formData.quantity + 1)}
+                          disabled={formData.quantity >= maxQuantity}
+                          aria-label="Increase quantity"
                         >
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -757,52 +712,45 @@ export default function EventDetails() {
                       </div>
                     </div>
 
-                    {/* Total Price */}
                     <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-4">
-                      <div className="text-white text-lg font-medium">Total:</div>
-                      <div className="text-white text-xl font-bold">${(getEventPrice() * formData.quantity).toFixed(2)}</div>
+                      <div className="text-white text-base sm:text-lg font-medium">Total:</div>
+                      <div className="text-white text-lg sm:text-xl font-bold">${(getEventPrice() * formData.quantity).toFixed(2)}</div>
                     </div>
                   </div>
-                  
-                  {/* Action Button */}
+
                   <div className="flex-1 flex items-end justify-center md:justify-end">
                     <PrimaryButton
+                      type="button"
                       onClick={handleDirectPurchase}
-                      disabled={selectedTicketType === null}
-                      className="w-full md:w-auto px-8 py-4 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={needsTicketTypeSelection}
+                      className="w-full md:w-auto min-h-11 px-8 py-4 text-base sm:text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {selectedTicketType === null ? 'Select Ticket Type' : 'Add to Cart'}
+                      {needsTicketTypeSelection ? 'Select Ticket Type' : 'Add to Cart'}
                     </PrimaryButton>
                   </div>
                 </div>
               </div>
             )}
           </div>
-          
-          {/* Success Modal - Fixed positioning and styling */}
+
           {uploadStatus.success && (
           <>
-            {/* Backdrop with blur */}
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]" />
-          
-          {/* Modal */}
+
           <div className="fixed inset-0 z-[9999] overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <div className="relative transform overflow-hidden rounded-3xl bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl px-4 pb-4 pt-5 text-left transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-8">
+              <div className="relative transform w-[95vw] max-h-[85vh] overflow-y-auto rounded-3xl bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl px-4 pb-4 pt-5 text-left transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-8">
                 <div className="text-center">
-                  {/* Success Icon */}
                   <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-500/20 backdrop-blur-xl border border-green-500/30 mb-6 shadow-[0_0_50px_rgba(34,197,94,0.3)]">
                     <svg className="h-14 w-14 text-green-400 drop-shadow-[0_0_20px_rgba(34,197,94,0.8)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  
-                  {/* Title */}
-                  <h3 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent mb-4">
+
+                  <h3 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent mb-4">
                     Success!
                   </h3>
-                  
-                  {/* Message */}
+
                   <div className="mb-8">
                     <p className="text-white text-lg mb-3">
                       Your form has been submitted for approval
@@ -811,8 +759,7 @@ export default function EventDetails() {
                       You'll receive an email notification once your request is reviewed. After approval, you'll be able to complete your ticket purchase.
                     </p>
                   </div>
-                  
-                  {/* Buttons */}
+
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <button
                       type="button"
@@ -841,10 +788,9 @@ export default function EventDetails() {
           </div>
         </>
       )}
-      
-      {/* Error Toast - Glassmorphism style */}
+
       {uploadStatus.error && !uploadStatus.uploading && (
-        <div className="fixed bottom-4 right-4 z-[9999] max-w-md animate-in slide-in-from-right duration-300">
+        <div className="fixed bottom-4 left-4 right-4 z-[9999] sm:left-auto sm:max-w-md animate-in slide-in-from-right duration-300">
           <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/30 rounded-2xl shadow-[0_8px_32px_rgba(239,68,68,0.3)] p-4">
             <div className="flex items-start">
               <div className="flex-shrink-0">
@@ -862,7 +808,9 @@ export default function EventDetails() {
               </div>
               <div className="ml-4 flex-shrink-0 flex">
                 <button
-                  className="inline-flex text-white/60 hover:text-white transition-all duration-200 hover:scale-110"
+                  type="button"
+                  aria-label="Dismiss error"
+                  className="inline-flex h-11 w-11 items-center justify-center text-white/60 hover:text-white transition-all duration-200 hover:scale-110"
                   onClick={() => setUploadStatus(prev => ({ ...prev, error: false, message: '' }))}
                 >
                   <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -874,19 +822,15 @@ export default function EventDetails() {
           </div>
         </div>
       )}
-      
-      {/* Loading Overlay - Glassmorphism style */}
+
       {uploadStatus.uploading && (
         <>
-          {/* Backdrop with blur */}
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]" />
-          
-          {/* Loading Modal */}
+
           <div className="fixed inset-0 z-[9999] overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4">
-              <div className="relative transform overflow-hidden rounded-3xl bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl px-4 pb-4 pt-5 text-center sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
+              <div className="relative transform w-[95vw] overflow-hidden rounded-3xl bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl px-4 pb-4 pt-5 text-center sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
                 <div>
-                  {/* Animated spinner with glow */}
                   <div className="relative">
                     <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white/80 mx-auto shadow-[0_0_30px_rgba(255,255,255,0.5)]"></div>
                     <div className="absolute inset-0 animate-pulse rounded-full bg-white/10 blur-xl"></div>

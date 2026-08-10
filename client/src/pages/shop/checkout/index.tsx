@@ -1,46 +1,67 @@
-import { useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ThemedPageWrapper, ThemedCard, PrimaryButton, OutlineButton, ThemedInput } from "@/components/ThemedComponents";
-import { useCart } from "@/contexts/CartContext";
+import { PrimaryButton, ThemedInput } from "@/components/ThemedComponents";
+import { useCart, calculateCartTotals, SALES_TAX_RATE } from "@/contexts/CartContext";
 import { UniversalPageLayout } from "@/components/UniversalPageLayout";
-import { BlurContainer, BlurCard, BlurActionButton } from "@/components/UniversalBlurComponents";
+import { BlurContainer } from "@/components/UniversalBlurComponents";
 import { CloverCheckout } from "@/components/CloverCheckout";
-import { createPaymentIntent, createPurchase } from "@/lib/api";
+import { createPaymentIntent } from "@/lib/api";
+
+interface PaymentIntent {
+  purchaseId?: string;
+  orderId?: string;
+  sessionId?: string;
+  checkoutUrl?: string;
+  amount?: number;
+}
 
 export default function CheckoutPage() {
   const [, setLocation] = useLocation();
-  const { cartItems, clearCart } = useCart();
-  const [deliveryMethod, setDeliveryMethod] = useState("pickup");
-  
+  const { cartItems } = useCart();
+  const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>("pickup");
+
   const [formState, setFormState] = useState({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
-    roomTeacher: "" // For fourth period delivery
+    roomTeacher: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentIntent, setPaymentIntent] = useState<any>(null);
+  const [paymentIntent, setPaymentIntent] = useState<PaymentIntent | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  const submissionInFlight = useRef(false);
+
+  const { subtotal, tax, total } = calculateCartTotals(cartItems);
+  const taxPercentLabel = `${(SALES_TAX_RATE * 100).toFixed(2)}%`;
 
   const handleBackToCart = () => {
     setLocation("/shop/cart");
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof typeof formState, value: string) => {
     setFormState(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate delivery details
+
+    if (submissionInFlight.current || showPayment) {
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      toast({
+        title: "Cart is empty",
+        description: "Add some items to your cart before checking out.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (deliveryMethod === "delivery" && !formState.roomTeacher) {
       toast({
         title: "Missing Information",
@@ -50,71 +71,50 @@ export default function CheckoutPage() {
       return;
     }
 
+    submissionInFlight.current = true;
     setIsSubmitting(true);
 
     try {
-      // Create payment intent with Clover
-      const intent = await createPaymentIntent({
-        amount: total,
+      const intent: PaymentIntent = await createPaymentIntent({
         items: cartItems.map(item => ({
-          name: item.name,
+          productId: String(item.id),
           quantity: item.quantity,
-          price: item.price
+          size: item.size
         })),
         customerEmail: formState.email,
-        customerName: `${formState.firstName} ${formState.lastName}`
-      });
-
-      // Create the purchase record first (with pending status)
-      const purchaseData = {
-        studentName: `${formState.firstName} ${formState.lastName}`,
-        studentEmail: formState.email,
+        customerName: `${formState.firstName} ${formState.lastName}`,
         phone: formState.phone,
-        productName: cartItems.map(item => item.name).join(', '),
-        quantity: cartItems.reduce((sum, item) => sum + item.quantity, 0),
-        amount: total,
-        paymentMethod: 'card',
-        status: 'pending',
-        cloverOrderId: intent.orderId,
-        cloverSessionId: intent.sessionId, // Store the session ID for webhook lookup
         deliveryMethod,
         deliveryDetails: deliveryMethod === 'delivery' ? {
           roomTeacher: formState.roomTeacher
-        } : undefined,
-        notes: JSON.stringify(cartItems.map(item => ({
-          ...item,
-          productId: item.id // Ensure productId is included for stock updates
-        }))) // Store cart items for later use
-      };
+        } : undefined
+      });
 
-      const purchase = await createPurchase(purchaseData);
-
-      // Store purchase info for verification on return from Clover
       sessionStorage.setItem('pending-cart-purchase', JSON.stringify({
-        purchaseId: purchase._id,
+        purchaseId: intent.purchaseId,
         cloverSessionId: intent.sessionId,
         timestamp: Date.now()
       }));
 
       setPaymentIntent(intent);
       setShowPayment(true);
-      setIsSubmitting(false);
     } catch (error) {
+      console.error('Failed to initialize payment:', error);
       toast({
-        title: "Error",
-        description: "Failed to initialize payment. Please try again.",
+        title: "Could not start checkout",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
+    } finally {
+      submissionInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
   const handleCloverRedirect = (checkoutUrl: string) => {
-    // Store current form data in session storage so we can clear cart on return
     sessionStorage.setItem('checkout-form-data', JSON.stringify(formState));
     sessionStorage.setItem('checkout-cart-items', JSON.stringify(cartItems));
 
-    // Redirect to Clover checkout
     window.location.href = checkoutUrl;
   };
 
@@ -128,23 +128,41 @@ export default function CheckoutPage() {
     setIsSubmitting(false);
   };
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.0875; // 8.75% tax
-  const total = subtotal + tax;
+  if (cartItems.length === 0 && !showPayment) {
+    return (
+      <UniversalPageLayout
+        pageType="shop"
+        title="Order Information"
+        backButtonText="Back to Cart"
+        onBackClick={handleBackToCart}
+      >
+        {({ contentVisible }) => (
+          <div className="max-w-2xl mx-auto px-4 sm:px-6">
+            <BlurContainer contentVisible={contentVisible} delay="200ms" className="p-6 text-center">
+              <h2 className="text-xl font-semibold text-white mb-2">Your cart is empty</h2>
+              <p className="text-gray-300 mb-6">Add something to your cart before checking out.</p>
+              <PrimaryButton onClick={() => setLocation("/shop")} className="min-h-11 py-3 px-6 font-semibold">
+                Browse the Shop
+              </PrimaryButton>
+            </BlurContainer>
+          </div>
+        )}
+      </UniversalPageLayout>
+    );
+  }
 
   return (
-    <UniversalPageLayout 
-      pageType="shop" 
-      title="Order Information" 
+    <UniversalPageLayout
+      pageType="shop"
+      title="Order Information"
       backButtonText="Back to Cart"
       onBackClick={handleBackToCart}
     >
       {({ contentVisible }) => (
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Order Form */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             <div className="lg:col-span-2">
-              <div 
+              <div
                 className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-2xl rounded-2xl overflow-hidden transform transition-all duration-500 ease-out"
                 style={{
                   opacity: contentVisible ? 1 : 0,
@@ -152,12 +170,11 @@ export default function CheckoutPage() {
                   transitionDelay: '200ms'
                 }}
               >
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <h2 className="text-xl font-semibold text-white mb-6">Contact Information</h2>
-                  
+
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Personal Information */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="firstName" className="text-white">First Name *</Label>
                         <ThemedInput
@@ -204,12 +221,11 @@ export default function CheckoutPage() {
                       />
                     </div>
 
-                    {/* Delivery Method */}
                     <div>
                       <Label className="text-white text-lg font-medium mb-4 block">Delivery Method *</Label>
-                      <RadioGroup 
-                        value={deliveryMethod} 
-                        onValueChange={setDeliveryMethod}
+                      <RadioGroup
+                        value={deliveryMethod}
+                        onValueChange={(value) => setDeliveryMethod(value === 'delivery' ? 'delivery' : 'pickup')}
                         className="space-y-4"
                       >
                         <div className="flex items-start space-x-3 p-4 rounded-lg bg-white/5 border border-white/10">
@@ -223,7 +239,7 @@ export default function CheckoutPage() {
                             </p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-start space-x-3 p-4 rounded-lg bg-white/5 border border-white/10">
                           <RadioGroupItem value="delivery" id="delivery" className="mt-1" />
                           <div className="flex-1">
@@ -254,8 +270,8 @@ export default function CheckoutPage() {
                     {!showPayment ? (
                       <div className="pt-4">
                         <button
-                          onClick={handleSubmit}
-                          className="w-full py-3 px-6 font-semibold bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          type="submit"
+                          className="w-full min-h-11 py-3 px-6 font-semibold bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={isSubmitting || cartItems.length === 0}
                         >
                           {isSubmitting ? "Initializing Payment..." : "Proceed to Payment"}
@@ -277,42 +293,43 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Order Summary */}
             <div className="lg:col-span-1">
-              <BlurContainer contentVisible={contentVisible} delay="300ms" className="sticky top-8 overflow-hidden">
-                <div className="p-6">
+              <BlurContainer contentVisible={contentVisible} delay="300ms" className="lg:sticky lg:top-8 overflow-hidden">
+                <div className="p-4 sm:p-6">
                   <h2 className="text-xl font-semibold text-white mb-4">Order Summary</h2>
-                  
-                  {/* Cart Items */}
+
                   <div className="space-y-4 mb-6">
-                    {cartItems.map((item, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <div className="flex-1">
-                          <h3 className="text-white font-medium">{item.name}</h3>
+                    {cartItems.map(item => (
+                      <div
+                        key={`${item.id}-${item.size ?? ''}-${item.color ?? ''}`}
+                        className="flex justify-between items-center gap-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-medium break-words">{item.name}</h3>
+                          {item.ticketType && <p className="text-gray-300 text-sm break-words">Ticket: {item.ticketType}</p>}
                           {item.size && <p className="text-gray-300 text-sm">Size: {item.size}</p>}
                           {item.color && <p className="text-gray-300 text-sm">Color: {item.color}</p>}
                           <p className="text-gray-300 text-sm">Qty: {item.quantity}</p>
                         </div>
-                        <span className="text-white font-medium">
+                        <span className="text-white font-medium shrink-0 whitespace-nowrap">
                           ${(item.price * item.quantity).toFixed(2)}
                         </span>
                       </div>
                     ))}
                   </div>
 
-                  {/* Price Breakdown */}
                   <div className="space-y-2 pt-4 border-t border-white/20">
-                    <div className="flex justify-between text-gray-300">
+                    <div className="flex justify-between gap-3 text-gray-300">
                       <span>Subtotal</span>
-                      <span>${subtotal.toFixed(2)}</span>
+                      <span className="shrink-0">${subtotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-gray-300">
-                      <span>Tax (8.75%)</span>
-                      <span>${tax.toFixed(2)}</span>
+                    <div className="flex justify-between gap-3 text-gray-300">
+                      <span>Tax ({taxPercentLabel})</span>
+                      <span className="shrink-0">${tax.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-white font-semibold text-lg pt-2 border-t border-white/20">
+                    <div className="flex justify-between gap-3 text-white font-semibold text-lg pt-2 border-t border-white/20">
                       <span>Total</span>
-                      <span>${total.toFixed(2)}</span>
+                      <span className="shrink-0">${total.toFixed(2)}</span>
                     </div>
                   </div>
 

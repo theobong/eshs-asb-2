@@ -1,33 +1,28 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
-// Load environment variables
 dotenv.config();
 
-// MongoDB connection
 export const connectDB = async () => {
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/eshs-asb';
-    
-    // Check if already connected
+
     if (mongoose.connection.readyState === 1) {
       console.log('MongoDB already connected');
       return;
     }
-    
+
     await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 10000 // 10 second timeout
+      serverSelectionTimeoutMS: 10000
     });
-    
+
     console.log('MongoDB connected successfully');
   } catch (error) {
     console.error('MongoDB connection error:', error);
-    // Don't exit the process, let the app continue without DB
-    console.log('⚠️ Application will continue without database connection');
+    console.log('Application will continue without database connection');
   }
 };
 
-// User Schema
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -35,26 +30,22 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Product Schema
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
   category: { type: String, enum: ['Apparel', 'Accessories'], required: true },
   organization: { type: String, required: true },
-  // For Apparel: sizes with individual stock amounts
   sizeStock: [{
     size: { type: String, required: true },
     stock: { type: Number, default: 0 }
   }],
-  // For Accessories: generic stock
   stock: { type: Number, default: 0 },
-  image: { type: String, required: true }, // Keep for backward compatibility
-  images: [{ type: String }], // New field for multiple images
+  image: { type: String, required: true },
+  images: [{ type: String }],
   description: { type: String, required: true },
   createdAt: { type: Date, default: Date.now }
 });
 
-// Event Schema
 const eventSchema = new mongoose.Schema({
   title: { type: String, required: true },
   category: { type: String, required: true },
@@ -81,7 +72,6 @@ const eventSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Video Post Schema
 const videoPostSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
@@ -95,7 +85,6 @@ const videoPostSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Announcement Schema
 const announcementSchema = new mongoose.Schema({
   title: { type: String, required: true },
   date: { type: Date, required: true },
@@ -105,7 +94,6 @@ const announcementSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Student Government Position Schema
 const studentGovPositionSchema = new mongoose.Schema({
   position: { type: String, required: true },
   gradeLevel: { type: String, required: true },
@@ -121,7 +109,6 @@ const studentGovPositionSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Club Schema
 const clubSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, required: true },
@@ -134,14 +121,12 @@ const clubSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-
-// Form Submission Schema
 const formSubmissionSchema = new mongoose.Schema({
   eventId: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' },
   studentName: { type: String, required: true },
   email: { type: String, required: true },
   submissionDate: { type: Date, default: Date.now },
-  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'approved', 'rejected', 'paid'], default: 'pending' },
   forms: [{
     fileName: { type: String, required: true },
     fileUrl: { type: String, required: true },
@@ -153,6 +138,9 @@ const formSubmissionSchema = new mongoose.Schema({
   reviewedBy: { type: String },
   reviewedAt: { type: Date },
   rejectionReason: { type: String },
+  purchaseStatus: { type: String, enum: ['pending', 'completed'] },
+  paymentDate: { type: Date },
+  transactionId: { type: String },
   ticketType: {
     name: { type: String },
     price: { type: Number },
@@ -160,7 +148,6 @@ const formSubmissionSchema = new mongoose.Schema({
   }
 });
 
-// Purchase Schema
 const purchaseSchema = new mongoose.Schema({
   studentName: { type: String, required: true },
   studentEmail: { type: String, required: true },
@@ -176,7 +163,9 @@ const purchaseSchema = new mongoose.Schema({
   transactionId: { type: String },
   cloverOrderId: { type: String },
   cloverSessionId: { type: String },
-  formSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: 'FormSubmission' }, // For ticket purchases
+  paymentVerifiedAt: { type: Date },
+  verificationMethod: { type: String, enum: ['clover-webhook', 'clover-api', 'redirect-unverified'] },
+  formSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: 'FormSubmission' },
   paymentDetails: {
     last4: { type: String },
     brand: { type: String },
@@ -195,18 +184,16 @@ const purchaseSchema = new mongoose.Schema({
   adminNotes: { type: String }
 });
 
-// File Upload Schema
 const fileSchema = new mongoose.Schema({
   filename: { type: String, required: true },
   originalName: { type: String, required: true },
   mimeType: { type: String, required: true },
   size: { type: Number, required: true },
-  data: { type: String, required: true }, // base64 encoded file data
+  data: { type: String, required: true },
   uploadedAt: { type: Date, default: Date.now },
   uploadedBy: { type: String, default: 'admin' }
 });
 
-// Export Models
 export const User = mongoose.model('User', userSchema);
 export const Product = mongoose.model('Product', productSchema);
 export const Event = mongoose.model('Event', eventSchema);
@@ -218,7 +205,6 @@ export const FormSubmission = mongoose.model('FormSubmission', formSubmissionSch
 export const Purchase = mongoose.model('Purchase', purchaseSchema);
 export const File = mongoose.model('File', fileSchema);
 
-// Type exports for TypeScript
 export type UserType = mongoose.InferSchemaType<typeof userSchema>;
 export type ProductType = mongoose.InferSchemaType<typeof productSchema>;
 export type EventType = mongoose.InferSchemaType<typeof eventSchema>;

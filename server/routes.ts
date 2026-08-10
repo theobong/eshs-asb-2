@@ -1,11 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, type PurchaseDoc, type FormSubmissionDoc } from "./storage";
 import express from 'express';
-import {
-  User, Product, Event, VideoPost, Announcement,
-  StudentGovPosition, Club, FormSubmission, Purchase, File
-} from '../shared/mongodb-schema';
+import { File } from '../shared/mongodb-schema';
 import { connectWithRetry as connectDB } from './mongo-utils';
 import { requireAdminAuth, handleAdminLogin, handleAdminLogout, checkAdminAuth } from './auth';
 import multer from 'multer';
@@ -13,20 +10,16 @@ import path from 'path';
 import fs from 'fs';
 import { emailService } from './email-service';
 import { paymentService } from './payment-service';
-
-// Ensure upload directory exists
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure multer for disk storage
-const upload = multer({ 
+const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
       cb(null, uploadDir);
@@ -39,18 +32,17 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: 50 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    // Allow images and PDFs
     const allowedMimes = [
       'image/jpeg',
-      'image/png', 
+      'image/png',
       'image/gif',
       'image/webp',
       'application/pdf'
     ];
-    
+
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -59,28 +51,232 @@ const upload = multer({
   }
 });
 
-// Create router
-export const router = express.Router();
-
-// Connect to MongoDB
 connectDB().catch(console.error);
 
-// General error handler
-const handleError = (res: express.Response, error: any) => {
+const handleError = (res: express.Response, error: unknown) => {
   console.error('API Error:', error);
   res.status(500).json({ error: 'Internal server error' });
 };
 
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const populatedEventTitle = (eventRef: unknown): string | undefined => {
+  if (eventRef && typeof eventRef === 'object' && 'title' in eventRef) {
+    const { title } = eventRef as { title?: unknown };
+    return typeof title === 'string' ? title : undefined;
+  }
+  return undefined;
+};
+
+const eventIdString = (eventRef: unknown): string | undefined => {
+  if (!eventRef) {
+    return undefined;
+  }
+  if (typeof eventRef === 'object' && '_id' in eventRef) {
+    return String((eventRef as { _id: unknown })._id);
+  }
+  return String(eventRef);
+};
+
+interface CartItem {
+  productId?: string;
+  name: string;
+  quantity: number;
+  price: number;
+  size?: string;
+}
+
+export const SALES_TAX_RATE = 0.0875;
+
+const roundToCents = (amount: number) => Math.round((amount + Number.EPSILON) * 100) / 100;
+
+class CheckoutError extends Error {}
+
+interface RequestedItem {
+  productId?: string;
+  quantity?: number;
+  size?: string;
+}
+
+interface PricedCart {
+  items: CartItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+}
+
+const availableStockFor = (
+  product: { category?: string; sizeStock?: { size: string; stock: number }[]; stock?: number | null },
+  size?: string
+): number => {
+  if (product.category === 'Apparel' && product.sizeStock?.length) {
+    const entry = product.sizeStock.find(ss => ss.size === size);
+    return entry ? entry.stock : 0;
+  }
+  return product.stock || 0;
+};
+
+const priceCartFromDatabase = async (requested: unknown): Promise<PricedCart> => {
+  if (!Array.isArray(requested) || requested.length === 0) {
+    throw new CheckoutError('Your cart is empty.');
+  }
+
+  const items: CartItem[] = [];
+
+  for (const raw of requested as RequestedItem[]) {
+    const productId = raw?.productId;
+    if (!productId) {
+      throw new CheckoutError('A cart item was missing its product id.');
+    }
+
+    const quantity = Number(raw?.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new CheckoutError('Cart quantities must be whole numbers of at least 1.');
+    }
+
+    const product = await storage.getProduct(productId);
+    if (!product) {
+      throw new CheckoutError('An item in your cart is no longer available.');
+    }
+
+    const size = raw?.size;
+    if (product.category === 'Apparel' && product.sizeStock?.length && !size) {
+      throw new CheckoutError(`Please choose a size for ${product.name}.`);
+    }
+
+    const available = availableStockFor(product, size);
+    if (available < quantity) {
+      throw new CheckoutError(
+        available > 0
+          ? `Only ${available} of ${product.name} left in stock.`
+          : `${product.name} is out of stock.`
+      );
+    }
+
+    items.push({
+      productId: String(product._id),
+      name: product.name,
+      quantity,
+      price: product.price,
+      size
+    });
+  }
+
+  const subtotal = roundToCents(items.reduce((sum, item) => sum + item.price * item.quantity, 0));
+  const tax = roundToCents(subtotal * SALES_TAX_RATE);
+  return { items, subtotal, tax, total: roundToCents(subtotal + tax) };
+};
+
+const priceTicketFromSubmission = (submission: FormSubmissionDoc): PricedCart => {
+  const quantity = submission.quantity || 1;
+  const unitPrice = submission.ticketType?.price ?? (
+    submission.totalAmount ? submission.totalAmount / quantity : 0
+  );
+  const name = submission.ticketType?.name || 'Event Ticket';
+  const total = roundToCents(unitPrice * quantity);
+
+  return {
+    items: [{ name, quantity, price: roundToCents(unitPrice) }],
+    subtotal: total,
+    tax: 0,
+    total
+  };
+};
+
+interface PaymentCompletion {
+  transactionId?: string;
+  paymentDetails?: { last4?: string; brand?: string };
+  paymentVerifiedAt?: Date;
+  verificationMethod?: 'clover-webhook' | 'clover-api' | 'redirect-unverified';
+}
+
+const cartItemsForPurchase = (purchase: PurchaseDoc): CartItem[] => {
+  const singleItemCart: CartItem[] = [
+    { name: purchase.productName, quantity: purchase.quantity, price: purchase.amount }
+  ];
+
+  try {
+    const parsed = JSON.parse(purchase.notes || '[]');
+    return Array.isArray(parsed) ? parsed as CartItem[] : singleItemCart;
+  } catch {
+    return singleItemCart;
+  }
+};
+
+const applyStockDecrementsForCart = async (items: CartItem[]): Promise<void> => {
+  for (const item of items) {
+    if (!item.productId) {
+      console.warn(`Cart item has no productId: ${item.name}`);
+      continue;
+    }
+
+    const product = await storage.getProduct(item.productId);
+    if (!product) {
+      console.warn(`Product not found: ${item.productId}`);
+      continue;
+    }
+
+    if (product.category === 'Apparel' && product.sizeStock && item.size) {
+      const sizeEntry = product.sizeStock.find(ss => ss.size === item.size);
+      if (!sizeEntry) {
+        console.warn(`Size ${item.size} is not stocked for product: ${product.name}`);
+        continue;
+      }
+      const previousStock = sizeEntry.stock;
+      sizeEntry.stock = Math.max(0, previousStock - item.quantity);
+      await storage.updateProduct(item.productId, { sizeStock: product.sizeStock });
+      console.log(`${product.name} (size ${item.size}) stock ${previousStock} -> ${sizeEntry.stock}`);
+    } else {
+      const previousStock = product.stock || 0;
+      const newStock = Math.max(0, previousStock - item.quantity);
+      await storage.updateProduct(item.productId, { stock: newStock });
+      console.log(`${product.name} stock ${previousStock} -> ${newStock}`);
+    }
+  }
+};
+
+const completePaidPurchase = async (purchase: PurchaseDoc, completion: PaymentCompletion): Promise<void> => {
+  await storage.updatePurchase(purchase._id.toString(), {
+    status: 'paid',
+    ...completion
+  });
+  console.log(`Purchase ${purchase._id} marked as paid`);
+
+  if (purchase.formSubmissionId) {
+    await storage.updateFormSubmission(purchase.formSubmissionId.toString(), {
+      status: 'paid',
+      purchaseStatus: 'completed',
+      paymentDate: new Date(),
+      transactionId: completion.transactionId
+    });
+    console.log(`Form submission ${purchase.formSubmissionId} marked as paid`);
+  }
+
+  const items = cartItemsForPurchase(purchase);
+  await applyStockDecrementsForCart(items);
+
+  try {
+    await emailService.sendPurchaseConfirmation(purchase.studentEmail, {
+      orderNumber: purchase._id.toString(),
+      items,
+      total: purchase.amount,
+      paymentMethod: 'card',
+      last4: completion.paymentDetails?.last4
+    });
+    console.log(`Confirmation email sent to ${purchase.studentEmail}`);
+  } catch (emailError) {
+    console.error('Failed to send confirmation email:', emailError);
+  }
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Serve uploaded files statically
   app.use('/uploads', express.static(uploadDir));
 
-  // Authentication routes
   app.post("/api/admin/login", handleAdminLogin);
   app.post("/api/admin/logout", handleAdminLogout);
   app.get("/api/admin/check-auth", checkAdminAuth);
 
-  // User routes
   app.get("/api/users/:id", async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
@@ -105,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", requireAdminAuth, async (req, res) => {
     try {
       const user = await storage.createUser(req.body);
       res.status(201).json(user);
@@ -114,7 +310,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Product routes
   app.get("/api/products", async (req, res) => {
     try {
       const products = await storage.getProducts();
@@ -169,7 +364,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Event routes
   app.get("/api/events", async (req, res) => {
     try {
       const events = await storage.getEvents();
@@ -224,7 +418,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Video routes
   app.get("/api/videos", async (req, res) => {
     try {
       const videos = await storage.getVideos();
@@ -279,7 +472,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Announcement routes
   app.get("/api/announcements", async (req, res) => {
     try {
       const announcements = await storage.getAnnouncements();
@@ -334,7 +526,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Student Government Position routes
   app.get("/api/student-gov-positions", async (req, res) => {
     try {
       const positions = await storage.getStudentGovPositions();
@@ -362,7 +553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(position);
     } catch (error) {
       console.error("Error creating student government position:", error);
-      res.status(400).json({ message: "Error creating student government position", error: error.message || error });
+      res.status(400).json({ message: "Error creating student government position", error: errorMessage(error) });
     }
   });
 
@@ -390,7 +581,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Club routes
   app.get("/api/clubs", async (req, res) => {
     try {
       const clubs = await storage.getClubs();
@@ -418,7 +608,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(club);
     } catch (error) {
       console.error("Error creating club:", error);
-      res.status(400).json({ message: "Error creating club", error: error.message || error });
+      res.status(400).json({ message: "Error creating club", error: errorMessage(error) });
     }
   });
 
@@ -446,10 +636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
-  // Form Submission routes
-  app.get("/api/form-submissions", async (req, res) => {
+  app.get("/api/form-submissions", requireAdminAuth, async (req, res) => {
     try {
       const submissions = await storage.getFormSubmissions();
       res.json(submissions);
@@ -473,17 +660,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/form-submissions", async (req, res) => {
     try {
       const submission = await storage.createFormSubmission(req.body);
-      
-      // Send email notification to admin
+
       try {
-        // Get event details
-        const event = await storage.getEvent(submission.eventId.toString());
-        
-        // Prepare attachments if forms are included
+        const eventId = eventIdString(submission.eventId);
+        const event = eventId ? await storage.getEvent(eventId) : null;
+
         const attachments = [];
         if (submission.forms && submission.forms.length > 0) {
           for (const form of submission.forms) {
-            // Read file from disk if it exists
             const filePath = path.join(__dirname, '..', form.fileUrl);
             if (fs.existsSync(filePath)) {
               const fileContent = fs.readFileSync(filePath);
@@ -495,8 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
-        
-        // Prepare email data
+
         const emailData = {
           eventName: event?.title || 'Unknown Event',
           studentName: submission.studentName,
@@ -504,15 +687,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           submissionDate: submission.submissionDate,
           quantity: submission.quantity || 1,
           totalAmount: submission.totalAmount || 0,
-          notes: submission.notes,
+          notes: submission.notes ?? undefined,
           forms: submission.forms,
           ticketType: submission.ticketType
         };
-        
-        // Send notification to admin
+
         await emailService.sendFormSubmissionNotification(emailData, attachments);
-        
-        // Send receipt to student with the same attachments
+
         await emailService.sendFormSubmissionReceipt(
           submission.email,
           emailData,
@@ -520,9 +701,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       } catch (emailError) {
         console.error('Failed to send email notifications:', emailError);
-        // Don't fail the request if email fails
       }
-      
+
       res.status(201).json(submission);
     } catch (error) {
       res.status(400).json({ message: "Error creating form submission", error });
@@ -532,14 +712,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/form-submissions/upload', upload.array('forms'), async (req, res) => {
     try {
       const files = req.files as Express.Multer.File[];
-      
-      // Create file URLs
+
       const fileDetails = files.map(file => ({
         fileName: file.originalname,
         fileUrl: `/uploads/${file.filename}`,
         fileType: file.mimetype
       }));
-      
+
       res.status(201).json(fileDetails);
     } catch (error) {
       handleError(res, error);
@@ -548,58 +727,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/form-submissions/:id", requireAdminAuth, async (req, res) => {
     try {
-      // Get the original submission to check status change
       const originalSubmission = await storage.getFormSubmission(req.params.id);
-      
+
       const submission = await storage.updateFormSubmission(req.params.id, req.body);
       if (!submission) {
         return res.status(404).json({ message: "Form submission not found" });
       }
-      
-      // Send email if status changed from pending to approved/rejected
-      console.log(`Status change check: original="${originalSubmission?.status}" new="${submission.status}"`);
-      console.log(`Condition check: original pending? ${originalSubmission?.status === 'pending'}, new not pending? ${submission.status !== 'pending'}`);
-      
-      // Check if status changed from pending to approved or rejected
+
       if (originalSubmission?.status === 'pending' && (submission.status === 'approved' || submission.status === 'rejected')) {
-        console.log(`Sending status update email to ${submission.email} for ${submission.status} status`);
+        const eventName = populatedEventTitle(submission.eventId) || 'Unknown Event';
+
         try {
-          // Event is already populated by the storage layer
-          const event = submission.eventId;
-          console.log(`Using populated event: ${event?.title}`);
-          
           if (submission.status === 'approved') {
-            // Send approval email
-            console.log('Sending approval email...');
             await emailService.sendApprovalNotification(submission.email, {
-              eventName: event?.title || 'Unknown Event',
+              eventName,
               studentName: submission.studentName,
-              ticketPurchaseUrl: `https://eshsasb.org/checkout/${submission._id}`, // Placeholder checkout URL with submission ID
+              ticketPurchaseUrl: `https://eshsasb.org/checkout/${submission._id}`,
               quantity: submission.quantity || 1,
               totalAmount: submission.totalAmount || 0,
               ticketType: submission.ticketType
             });
-            console.log('Approval email sent successfully');
-          } else if (submission.status === 'rejected') {
-            // Send rejection email
-            console.log('Sending rejection email...');
+          } else {
             const reason = req.body.rejectionReason || 'Your request did not meet the requirements. Please review the guidelines and try again.';
             await emailService.sendRejectionNotification(submission.email, {
-              eventName: event?.title || 'Unknown Event',
+              eventName,
               studentName: submission.studentName,
               reason: reason,
-              retryUrl: `https://eshsasb.org/activities/details/${submission.eventId}` // Link back to event details page
+              retryUrl: `https://eshsasb.org/activities/details/${eventIdString(submission.eventId) || ''}`
             });
-            console.log('Rejection email sent successfully');
           }
         } catch (emailError) {
           console.error('Failed to send status update email:', emailError);
-          // Don't fail the request if email fails
         }
-      } else {
-        console.log('No email sent - status change condition not met');
       }
-      
+
       res.json(submission);
     } catch (error) {
       res.status(400).json({ message: "Error updating form submission", error });
@@ -618,37 +779,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Payment routes
   app.post("/api/payment/create-intent", async (req, res) => {
     try {
-      const { amount, items, customerEmail, customerName, submissionId } = req.body;
+      const {
+        items,
+        customerEmail,
+        customerName,
+        phone,
+        submissionId,
+        deliveryMethod,
+        deliveryDetails
+      } = req.body;
 
-      const paymentIntent = await paymentService.createPaymentIntent({
-        amount,
-        metadata: {
-          customerEmail,
-          customerName,
-          items: JSON.stringify(items),
-          submissionId // For ticket purchases - used in redirect URL
+      if (!customerEmail || !customerName) {
+        return res.status(400).json({ message: "Name and email are required." });
+      }
+
+      let submission: FormSubmissionDoc | null = null;
+      let priced: PricedCart;
+
+      if (submissionId) {
+        submission = await storage.getFormSubmission(submissionId);
+        if (!submission) {
+          return res.status(404).json({ message: "Submission not found" });
         }
+        if (submission.status !== 'approved') {
+          return res.status(400).json({ message: "This request is not approved for purchase." });
+        }
+        priced = priceTicketFromSubmission(submission);
+      } else {
+        priced = await priceCartFromDatabase(items);
+      }
+
+      if (priced.total <= 0) {
+        return res.status(400).json({ message: "This order has no payable amount." });
+      }
+
+      const purchase = await storage.createPurchase({
+        studentName: customerName,
+        studentEmail: customerEmail,
+        phone,
+        productName: priced.items.map(item => item.name).join(', '),
+        quantity: priced.items.reduce((sum, item) => sum + item.quantity, 0),
+        amount: priced.total,
+        status: 'pending',
+        paymentMethod: 'card',
+        deliveryMethod: deliveryMethod === 'delivery' ? 'delivery' : 'pickup',
+        deliveryDetails: deliveryMethod === 'delivery' ? deliveryDetails : undefined,
+        formSubmissionId: submission ? submission._id : undefined,
+        notes: JSON.stringify(priced.items)
       });
 
-      res.json(paymentIntent);
+      try {
+        const paymentIntent = await paymentService.createPaymentIntent({
+          amount: priced.total,
+          lineItems: priced.items.map(item => ({
+            name: item.name,
+            unitPrice: item.price,
+            quantity: item.quantity
+          })),
+          metadata: { customerEmail, customerName, submissionId }
+        });
+
+        await storage.updatePurchase(purchase._id.toString(), {
+          cloverOrderId: paymentIntent.orderId,
+          cloverSessionId: paymentIntent.sessionId
+        });
+
+        if (submission) {
+          await storage.updateFormSubmission(submission._id.toString(), { purchaseStatus: 'pending' });
+        }
+
+        res.json({
+          purchaseId: purchase._id.toString(),
+          orderId: paymentIntent.orderId,
+          sessionId: paymentIntent.sessionId,
+          checkoutUrl: paymentIntent.checkoutUrl,
+          subtotal: priced.subtotal,
+          tax: priced.tax,
+          amount: priced.total,
+          items: priced.items
+        });
+      } catch (cloverError) {
+        await storage.deletePurchase(purchase._id.toString());
+        throw cloverError;
+      }
     } catch (error) {
+      if (error instanceof CheckoutError) {
+        return res.status(400).json({ message: error.message });
+      }
       console.error('Failed to create payment intent:', error);
-      res.status(500).json({ message: "Failed to create payment intent", error });
+      res.status(500).json({ message: "Failed to start checkout. Please try again." });
     }
   });
 
   app.post("/api/payment/process", async (req, res) => {
     try {
       const { paymentToken, orderId, purchaseData } = req.body;
-      
-      // Process the payment
+
       const paymentResult = await paymentService.processPayment(paymentToken, orderId);
-      
+
       if (paymentResult.success) {
-        // Create purchase record
         const purchase = await storage.createPurchase({
           ...purchaseData,
           status: 'paid',
@@ -659,16 +890,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             brand: paymentResult.paymentMethod
           }
         });
-        
-        // Send confirmation email
+
         await emailService.sendPurchaseConfirmation(purchaseData.studentEmail, {
-          orderNumber: purchase._id,
+          orderNumber: purchase._id.toString(),
           items: purchaseData.items,
           total: purchaseData.amount,
           paymentMethod: paymentResult.paymentMethod,
           last4: paymentResult.last4
         });
-        
+
         res.json({ success: true, purchase, payment: paymentResult });
       } else {
         res.status(400).json({ success: false, message: "Payment failed" });
@@ -688,204 +918,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Clover Hosted Checkout webhook endpoint
   app.post("/api/webhooks/clover", express.raw({ type: 'application/json' }), async (req, res) => {
     const startTime = Date.now();
-    const timestamp = new Date().toISOString();
-    
-    // Log incoming webhook details
-    console.log(`\n🔔 [${timestamp}] Clover Webhook Received`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
+
     try {
-      // Get the signature from headers
       const signature = req.get('X-Clover-Signature') || req.get('Clover-Signature') || '';
       const payload = req.body.toString();
-      
-      console.log(`🔐 Signature provided: ${signature ? 'Yes' : 'No'}`);
-      console.log(`📦 Payload size: ${payload.length} bytes`);
-      
-      // Verify webhook signature for security
+
       if (!paymentService.verifyWebhookSignature(payload, signature)) {
-        console.error('❌ Invalid webhook signature');
-        console.error(`   Expected signature format: sha256=<hash>`);
-        console.error(`   Received signature: ${signature}`);
+        console.error('Rejected Clover webhook with an invalid signature');
         return res.status(401).json({ error: 'Invalid signature' });
       }
-      
-      console.log('✅ Signature verified successfully');
-      
+
       const webhookData = JSON.parse(payload);
-      console.log('📋 Webhook Data:');
-      console.log(JSON.stringify(webhookData, null, 2));
-      
       const { type, eventType, objectId, data } = webhookData;
 
-      // Handle different webhook event types
       const event = type || eventType;
       const orderId = objectId || data?.orderId || data?.id;
-      
-      console.log(`🏷️  Event Type: ${event}`);
-      console.log(`🆔 Order ID: ${orderId}`);
 
       if (event === 'ORDER_PAYMENT_CREATED' || event === 'PAYMENT_CREATED' || event === 'order.payment_created') {
-        console.log(`\n💳 Processing payment event for order: ${orderId}`);
-        
         if (orderId) {
-          // Get the purchase record by Clover order ID or session ID
-          console.log(`🔍 Looking up purchase record...`);
-          let purchase = await storage.getPurchaseByCloverOrderId(orderId);
-          let lookupMethod = 'cloverOrderId';
-          
-          // If not found by order ID, try session ID (webhook might use session ID)
-          if (!purchase) {
-            console.log(`   Not found by cloverOrderId, trying cloverSessionId...`);
-            purchase = await storage.getPurchaseByCloverSessionId(orderId);
-            lookupMethod = 'cloverSessionId';
-          }
-          
+          const purchase = await storage.getPurchaseByCloverOrderId(orderId)
+            || await storage.getPurchaseByCloverSessionId(orderId);
+
           if (purchase) {
-            console.log(`✅ Purchase found via ${lookupMethod}: ${purchase._id}`);
-            console.log(`   Customer: ${purchase.studentName} (${purchase.studentEmail})`);
-            console.log(`   Amount: $${purchase.amount}`);
-            console.log(`   Current Status: ${purchase.status}`);
-            
-            // Extract payment details
-            const transactionId = data?.payment?.id || data?.id;
-            const last4 = data?.payment?.cardTransaction?.last4 || data?.source?.last4;
-            const brand = data?.payment?.cardTransaction?.cardType || data?.source?.brand || 'card';
-            
-            console.log(`💳 Payment Details:`);
-            console.log(`   Transaction ID: ${transactionId}`);
-            console.log(`   Card Last 4: ${last4}`);
-            console.log(`   Card Brand: ${brand}`);
-            
-            // Update purchase status to paid
-            await storage.updatePurchase(purchase._id, {
-              status: 'paid',
-              transactionId: transactionId,
+            await completePaidPurchase(purchase, {
+              transactionId: data?.payment?.id || data?.id,
+              verificationMethod: 'clover-webhook',
               paymentDetails: {
-                last4: last4,
-                brand: brand
+                last4: data?.payment?.cardTransaction?.last4 || data?.source?.last4,
+                brand: data?.payment?.cardTransaction?.cardType || data?.source?.brand || 'card'
               }
             });
-            
-            console.log(`✅ Updated purchase status to 'paid'`);
-            
-            // If this purchase is for a form submission (activity ticket), update the submission
-            if (purchase.formSubmissionId) {
-              console.log(`🎟️  Updating form submission status for ticket purchase...`);
-              await storage.updateFormSubmission(purchase.formSubmissionId, {
-                status: 'paid',
-                purchaseStatus: 'completed',
-                paymentDate: new Date(),
-                transactionId: transactionId
-              });
-              console.log(`✅ Form submission marked as paid`);
-            }
-
-            // Parse cart items from notes
-            let items = [];
-            try {
-              items = JSON.parse(purchase.notes || '[]');
-              console.log(`📦 Found ${items.length} items in cart`);
-            } catch (e) {
-              items = [{ name: purchase.productName, quantity: purchase.quantity, price: purchase.amount }];
-              console.log(`⚠️  Fallback to single item: ${purchase.productName}`);
-            }
-
-            // Update product stock for each item
-            console.log(`\n🏪 Updating product stock...`);
-            for (const item of items) {
-              if (item.productId) {
-                console.log(`   Processing item: ${item.name} (ID: ${item.productId})`);
-                const product = await storage.getProduct(item.productId);
-                if (product) {
-                  if (product.category === 'Apparel' && product.sizeStock && item.size) {
-                    // Update size-specific stock
-                    const oldStock = product.sizeStock.find(ss => ss.size === item.size)?.stock || 0;
-                    const updatedSizeStock = product.sizeStock.map(ss => 
-                      ss.size === item.size 
-                        ? { ...ss, stock: Math.max(0, ss.stock - item.quantity) }
-                        : ss
-                    );
-                    await storage.updateProduct(item.productId, { sizeStock: updatedSizeStock });
-                    const newStock = updatedSizeStock.find(ss => ss.size === item.size)?.stock || 0;
-                    console.log(`   📦 ${product.name} (Size ${item.size}): ${oldStock} → ${newStock}`);
-                  } else {
-                    // Update general stock
-                    const oldStock = product.stock || 0;
-                    const newStock = Math.max(0, oldStock - item.quantity);
-                    await storage.updateProduct(item.productId, { stock: newStock });
-                    console.log(`   📦 ${product.name}: ${oldStock} → ${newStock}`);
-                  }
-                } else {
-                  console.warn(`   ⚠️  Product not found: ${item.productId}`);
-                }
-              } else {
-                console.warn(`   ⚠️  Item has no productId: ${item.name}`);
-              }
-            }
-
-            // Send confirmation email
-            console.log(`\n📧 Sending confirmation email to ${purchase.studentEmail}...`);
-            try {
-              await emailService.sendPurchaseConfirmation(purchase.studentEmail, {
-                orderNumber: purchase._id,
-                items: items,
-                total: purchase.amount,
-                paymentMethod: 'card',
-                last4: last4
-              });
-              console.log(`✅ Confirmation email sent successfully`);
-            } catch (emailError) {
-              console.error(`❌ Failed to send confirmation email:`, emailError);
-            }
-
-            const processingTime = Date.now() - startTime;
-            console.log(`\n🎉 Payment processing completed successfully!`);
-            console.log(`   Order: ${orderId}`);
-            console.log(`   Purchase: ${purchase._id}`);
-            console.log(`   Processing Time: ${processingTime}ms`);
           } else {
-            console.warn(`⚠️  No purchase found for order ID: ${orderId}`);
-            console.log(`   Searched by cloverOrderId and cloverSessionId`);
-            
-            // Log all pending purchases for debugging
-            const pendingPurchases = await storage.getPurchases();
-            const pending = pendingPurchases.filter(p => p.status === 'pending');
-            console.log(`\n🔍 Debug: Found ${pending.length} pending purchases:`);
-            pending.forEach(p => {
-              console.log(`   - ${p._id}: cloverOrderId=${p.cloverOrderId}, cloverSessionId=${p.cloverSessionId}`);
-            });
+            console.warn(`No purchase found for Clover order ID: ${orderId}`);
           }
         } else {
-          console.warn(`⚠️  No order ID found in webhook data`);
+          console.warn('Clover webhook contained no order ID');
         }
-      } else {
-        console.log(`ℹ️  Ignoring event type: ${event}`);
       }
 
       const totalTime = Date.now() - startTime;
-      console.log(`\n⏱️  Total webhook processing time: ${totalTime}ms`);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-      
       res.status(200).json({ received: true, processedAt: new Date().toISOString(), processingTimeMs: totalTime });
     } catch (error) {
-      const errorTime = Date.now() - startTime;
-      console.error(`❌ Webhook processing failed after ${errorTime}ms:`, error);
-      console.error(`   Error Type: ${error.name}`);
-      console.error(`   Error Message: ${error.message}`);
-      if (error.stack) {
-        console.error(`   Stack Trace:`, error.stack);
-      }
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-      res.status(500).json({ message: "Webhook processing failed", error: error.message });
+      console.error(`Clover webhook processing failed after ${Date.now() - startTime}ms:`, error);
+      res.status(500).json({ message: "Webhook processing failed", error: errorMessage(error) });
     }
   });
 
-  // Purchase routes
-  app.get("/api/purchases", async (req, res) => {
+  app.get("/api/purchases", requireAdminAuth, async (req, res) => {
     try {
       const purchases = await storage.getPurchases();
       res.json(purchases);
@@ -894,18 +975,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Sync order statuses with Clover (limited functionality with Hosted Checkout)
   app.post("/api/purchases/sync-status", requireAdminAuth, async (req, res) => {
     try {
       const purchases = await storage.getPurchases();
       const pendingPurchases = purchases.filter(p => p.status === 'pending');
-      
+
       if (pendingPurchases.length === 0) {
         return res.json({ message: "No pending orders to sync", updated: 0 });
       }
 
-      // With Hosted Checkout, we can't directly query individual orders
-      // Instead, we'll check if orders are older than 24 hours and likely abandoned
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       let abandonedCount = 0;
       let recentCount = 0;
@@ -913,22 +991,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const purchase of pendingPurchases) {
         const orderDate = new Date(purchase.date);
         if (orderDate < oneDayAgo) {
-          // Mark old pending orders as potentially abandoned
-          // Don't change status automatically, just log for admin review
-          console.log(`⚠️ Order ${purchase._id} has been pending for over 24 hours - may be abandoned`);
+          console.log(`Order ${purchase._id} has been pending for over 24 hours and may be abandoned`);
           abandonedCount++;
         } else {
           recentCount++;
         }
       }
 
-      // For Hosted Checkout, the primary way to get payment status is through webhooks
-      // This endpoint mainly serves to identify potentially abandoned orders
-      const message = recentCount > 0 
+      const message = recentCount > 0
         ? `Found ${recentCount} recent pending orders (likely awaiting payment) and ${abandonedCount} orders over 24 hours old (possibly abandoned). Hosted Checkout relies on webhooks for automatic status updates.`
         : `Found ${abandonedCount} orders over 24 hours old that may be abandoned.`;
 
-      res.json({ 
+      res.json({
         message,
         pending_recent: recentCount,
         pending_old: abandonedCount,
@@ -953,7 +1027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/purchases", async (req, res) => {
+  app.post("/api/purchases", requireAdminAuth, async (req, res) => {
     try {
       const purchase = await storage.createPurchase(req.body);
       res.status(201).json(purchase);
@@ -962,167 +1036,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Ticket purchase endpoint for approved activity tickets
-  app.post("/api/ticket-purchase", async (req, res) => {
-    try {
-      const { submissionId, ...purchaseData } = req.body;
-      
-      // Verify submission exists and is approved
-      const submission = await storage.getFormSubmission(submissionId);
-      if (!submission) {
-        return res.status(404).json({ message: "Submission not found" });
-      }
-      
-      if (submission.status !== 'approved') {
-        return res.status(400).json({ message: "Submission is not approved for purchase" });
-      }
-      
-      // Create purchase record
-      const purchase = await storage.createPurchase({
-        ...purchaseData,
-        formSubmissionId: submissionId
-      });
-      
-      // Update submission to indicate purchase is pending
-      await storage.updateFormSubmission(submissionId, {
-        purchaseStatus: 'pending',
-        purchaseId: purchase._id
-      });
-      
-      res.status(201).json(purchase);
-    } catch (error) {
-      console.error('Error creating ticket purchase:', error);
-      res.status(400).json({ message: "Error creating ticket purchase", error });
-    }
-  });
-
-  // Payment verification endpoint - called when user returns from Clover checkout
   app.post("/api/payment/verify", async (req, res) => {
     try {
-      const { sessionId, checkoutId, submissionId, purchaseId } = req.body;
+      const { sessionId, checkoutId } = req.body;
       const lookupId = sessionId || checkoutId;
 
-      console.log(`\n🔍 Payment verification request:`);
-      console.log(`   Session/Checkout ID: ${lookupId || 'N/A'}`);
-      console.log(`   Submission ID: ${submissionId || 'N/A'}`);
-      console.log(`   Purchase ID: ${purchaseId || 'N/A'}`);
-
-      if (!lookupId && !submissionId && !purchaseId) {
-        return res.status(400).json({ message: "Missing session ID, submission ID, or purchase ID" });
+      if (!lookupId) {
+        return res.status(400).json({ message: "A Clover checkout session id is required." });
       }
 
-      let purchase = null;
-
-      // Try to find purchase by direct purchase ID first (most reliable)
-      if (purchaseId) {
-        purchase = await storage.getPurchase(purchaseId);
-      }
-
-      // Try to find purchase by session ID
-      if (!purchase && lookupId) {
-        purchase = await storage.getPurchaseByCloverSessionId(lookupId);
-        if (!purchase) {
-          purchase = await storage.getPurchaseByCloverOrderId(lookupId);
-        }
-      }
-
-      // If not found and we have submissionId, look up by form submission
-      if (!purchase && submissionId) {
-        const purchases = await storage.getPurchases();
-        purchase = purchases.find((p: any) => p.formSubmissionId?.toString() === submissionId);
-      }
+      const purchase = await storage.getPurchaseByCloverSessionId(lookupId)
+        || await storage.getPurchaseByCloverOrderId(lookupId);
 
       if (!purchase) {
-        console.log(`   ⚠️ No purchase found`);
+        console.warn('Payment verification found no purchase for the supplied Clover session id');
         return res.status(404).json({ message: "Purchase not found" });
       }
 
-      console.log(`   ✅ Found purchase: ${purchase._id}`);
-      console.log(`   Current status: ${purchase.status}`);
-
-      // If already paid, return success
       if (purchase.status === 'paid') {
-        console.log(`   Already marked as paid`);
         return res.json({
           success: true,
+          confirmed: true,
           status: 'paid',
-          purchase: purchase,
-          message: 'Payment already verified'
+          purchaseId: purchase._id.toString(),
+          amount: purchase.amount,
+          message: 'Payment already confirmed'
         });
       }
 
-      // Since user returned to success URL, assume payment was successful
-      // (Clover only redirects to success URL on successful payment)
-      console.log(`   Marking purchase as paid (user returned to success URL)`);
+      const verification = await paymentService.verifyOrderPayment(
+        purchase.cloverOrderId || '',
+        purchase.amount
+      );
 
-      // Update purchase status to paid
-      await storage.updatePurchase(purchase._id, {
-        status: 'paid',
-        paymentVerifiedAt: new Date()
+      if (verification.checked && !verification.paid) {
+        console.warn(`Refusing to mark purchase ${purchase._id} paid: ${verification.reason}`);
+        return res.status(402).json({
+          success: false,
+          confirmed: false,
+          status: purchase.status,
+          message: 'We could not confirm this payment with Clover.'
+        });
+      }
+
+      if (!verification.checked) {
+        console.warn(
+          `Marking purchase ${purchase._id} paid without Clover confirmation (${verification.reason}). ` +
+          'Recorded as unverified for admin review.'
+        );
+      }
+
+      await completePaidPurchase(purchase, {
+        paymentVerifiedAt: new Date(),
+        verificationMethod: verification.checked ? 'clover-api' : 'redirect-unverified'
       });
-
-      // If this is a ticket purchase, update the form submission
-      if (purchase.formSubmissionId) {
-        console.log(`   Updating form submission: ${purchase.formSubmissionId}`);
-        await storage.updateFormSubmission(purchase.formSubmissionId, {
-          status: 'paid',
-          purchaseStatus: 'completed',
-          paymentDate: new Date()
-        });
-      }
-
-      // Parse cart items for stock update
-      let items = [];
-      try {
-        items = JSON.parse(purchase.notes || '[]');
-      } catch (e) {
-        items = [{ name: purchase.productName, quantity: purchase.quantity, price: purchase.amount }];
-      }
-
-      // Update product stock for each item
-      for (const item of items) {
-        if (item.productId) {
-          const product = await storage.getProduct(item.productId);
-          if (product) {
-            if (product.category === 'Apparel' && product.sizeStock && item.size) {
-              const updatedSizeStock = product.sizeStock.map((ss: any) =>
-                ss.size === item.size
-                  ? { ...ss, stock: Math.max(0, ss.stock - item.quantity) }
-                  : ss
-              );
-              await storage.updateProduct(item.productId, { sizeStock: updatedSizeStock });
-            } else {
-              const newStock = Math.max(0, (product.stock || 0) - item.quantity);
-              await storage.updateProduct(item.productId, { stock: newStock });
-            }
-          }
-        }
-      }
-
-      // Send confirmation email
-      try {
-        await emailService.sendPurchaseConfirmation(purchase.studentEmail, {
-          orderNumber: purchase._id,
-          items: items,
-          total: purchase.amount,
-          paymentMethod: 'card'
-        });
-        console.log(`   ✅ Confirmation email sent`);
-      } catch (emailError) {
-        console.error(`   ⚠️ Failed to send confirmation email:`, emailError);
-      }
-
-      console.log(`   ✅ Payment verification complete`);
 
       res.json({
         success: true,
+        confirmed: verification.checked,
         status: 'paid',
-        purchase: purchase,
-        message: 'Payment verified successfully'
+        purchaseId: purchase._id.toString(),
+        amount: purchase.amount,
+        message: verification.checked
+          ? 'Payment confirmed with Clover'
+          : 'Payment recorded, pending confirmation'
       });
     } catch (error) {
       console.error('Payment verification failed:', error);
-      res.status(500).json({ message: "Payment verification failed", error });
+      res.status(500).json({ message: "Payment verification failed" });
     }
   });
 
@@ -1150,84 +1131,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // File upload endpoints
-  // Simple test endpoint to verify upload route is working
   app.get("/api/upload-test", (req, res) => {
     res.json({ message: "Upload endpoint is accessible", timestamp: new Date().toISOString() });
   });
 
   app.post("/api/upload", (req, res, next) => {
-    console.log('Upload request headers:', req.headers);
-    console.log('Content-Length:', req.headers['content-length']);
-    console.log('Content-Type:', req.headers['content-type']);
-    console.log('Request URL:', req.url);
-    console.log('Request method:', req.method);
-    
-    // Set a timeout for the upload request
     req.setTimeout(60000, () => {
-      console.log('Upload request timed out');
       if (!res.headersSent) {
         res.status(408).json({ message: "Upload timed out" });
       }
     });
-    
+
     next();
   }, requireAdminAuth, (req, res, next) => {
-    console.log('Auth check passed, proceeding to multer');
-    next();
-  }, (req, res, next) => {
-    console.log('About to call multer');
     upload.single('file')(req, res, (err) => {
       if (err) {
         console.error('Multer error:', err);
         if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(413).json({ 
-            message: "File too large", 
+          return res.status(413).json({
+            message: "File too large",
             maxSize: "50MB",
-            error: err.message 
+            error: err.message
           });
         }
         if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-          return res.status(400).json({ 
-            message: "Unexpected file field", 
-            error: err.message 
+          return res.status(400).json({
+            message: "Unexpected file field",
+            error: err.message
           });
         }
-        return res.status(400).json({ 
-          message: "Upload error", 
-          error: err.message 
+        return res.status(400).json({
+          message: "Upload error",
+          error: err.message
         });
       }
-      console.log('Multer completed successfully');
       next();
     });
   }, async (req, res) => {
     try {
-      console.log('Upload request received');
-      console.log('Body size:', JSON.stringify(req.body).length);
-      
       if (!req.file) {
-        console.log('No file in request');
-        console.log('Request files:', req.files);
         return res.status(400).json({ message: "No file uploaded" });
       }
 
       const { originalname, mimetype, size, filename, path: filePath } = req.file;
-      console.log(`Processing file: ${originalname}, size: ${size}, type: ${mimetype}, saved as: ${filename}`);
-      
-      console.log('Saving metadata to database...');
-      // Save file metadata to database (not the file data itself)
+
       const file = new File({
         filename,
         originalName: originalname,
         mimeType: mimetype,
         size,
-        data: filePath // Store file path instead of base64 data
+        data: filePath
       });
 
       const savedFile = await file.save();
-      console.log('File metadata saved successfully');
-      
+
       res.json({
         id: savedFile._id,
         filename: savedFile.filename,
@@ -1239,65 +1196,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('File upload error:', error);
-      res.status(500).json({ message: "Error uploading file", error: error.message });
+      res.status(500).json({ message: "Error uploading file", error: errorMessage(error) });
     }
   });
 
-  // File serving endpoint
   app.get("/api/files/:id", async (req, res) => {
     try {
       const file = await File.findById(req.params.id);
-      
+
       if (!file) {
         return res.status(404).json({ message: "File not found" });
       }
 
-      // Check if file exists on disk
-      const filePath = file.data; // data field now contains file path
+      const filePath = file.data;
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ message: "Physical file not found" });
       }
-      
-      // Set appropriate headers
+
       res.set({
         'Content-Type': file.mimeType,
         'Content-Disposition': `inline; filename="${file.originalName}"`
       });
-      
-      // Stream the file from disk
+
       res.sendFile(path.resolve(filePath));
     } catch (error) {
       console.error('File serving error:', error);
-      res.status(500).json({ message: "Error serving file", error: error.message });
+      res.status(500).json({ message: "Error serving file", error: errorMessage(error) });
     }
   });
 
-  // File deletion endpoint
   app.delete("/api/files/:id", requireAdminAuth, async (req, res) => {
     try {
       const file = await File.findByIdAndDelete(req.params.id);
-      
+
       if (!file) {
         return res.status(404).json({ message: "File not found" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error('File deletion error:', error);
-      res.status(500).json({ message: "Error deleting file", error: error.message });
+      res.status(500).json({ message: "Error deleting file", error: errorMessage(error) });
     }
   });
 
-  // Direct email test for status updates (debugging)
   app.post("/api/debug-status-email", requireAdminAuth, async (req, res) => {
     try {
       const { to, status, eventName = 'Debug Test Event', studentName = 'Debug Student' } = req.body;
-      
+
       if (!to) {
         return res.status(400).json({ message: "Email address is required" });
       }
-
-      console.log(`Debug: Testing ${status} email to ${to}`);
 
       if (status === 'approved') {
         await emailService.sendApprovalNotification(to, {
@@ -1326,15 +1275,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: `Debug ${status} email sent successfully to ${to}` });
     } catch (error) {
       console.error('Debug email test error:', error);
-      res.status(500).json({ message: "Error sending debug email", error: error.message });
+      res.status(500).json({ message: "Error sending debug email", error: errorMessage(error) });
     }
   });
 
-  // Email test endpoint (admin only)
   app.post("/api/test-email", requireAdminAuth, async (req, res) => {
     try {
       const { to, type = 'test' } = req.body;
-      
+
       if (!to) {
         return res.status(400).json({ message: "Email address is required" });
       }
@@ -1406,7 +1354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: `${type} email sent successfully to ${to}` });
     } catch (error) {
       console.error('Email test error:', error);
-      res.status(500).json({ message: "Error sending test email", error: error.message });
+      res.status(500).json({ message: "Error sending test email", error: errorMessage(error) });
     }
   });
 

@@ -1,30 +1,55 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ThemedPageWrapper, ThemedCard, PrimaryButton } from "@/components/ThemedComponents";
 import { getVideos, type VideoPost } from "@/lib/api";
 import { UniversalPageLayout } from "@/components/UniversalPageLayout";
 import { BlurContainer, BlurCard, BlurActionButton } from "@/components/UniversalBlurComponents";
 
+const toYouTubeEmbedUrl = (videoUrl: string) => {
+  if (videoUrl.includes('youtube.com/watch')) {
+    const videoId = videoUrl.split('v=')[1]?.split('&')[0];
+    return `https://www.youtube.com/embed/${videoId}`;
+  }
+  if (videoUrl.includes('youtu.be/')) {
+    const videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0];
+    return `https://www.youtube.com/embed/${videoId}`;
+  }
+  return videoUrl;
+};
+
+const formatDate = (date: Date | string) => {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return dateObj.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
+
+const getAuthorInitials = (author: string) =>
+  (author || '')
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+const formatViews = (views: number | undefined) => (views ?? 0).toLocaleString();
+
 const BirdsEyeView = () => {
-  const [, setLocation] = useLocation();
   const [videos, setVideos] = useState<VideoPost[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<VideoPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load videos from API
   useEffect(() => {
     const loadVideos = async () => {
       try {
         setLoading(true);
         const data = await getVideos();
         setVideos(data);
-        // Set featured video or first video as selected
         const featured = data.find(video => video.featured) || data[0];
         setSelectedVideo(featured || null);
         setError(null);
@@ -47,26 +72,6 @@ const BirdsEyeView = () => {
     }
   };
 
-  // Helper function to format date
-  const formatDate = (date: Date | string) => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
-  // Helper function to get author initials for avatar
-  const getAuthorInitials = (author: string) => {
-    return author
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
     <UniversalPageLayout pageType="information" title="Bird's Eye View">
       {({ contentVisible }) => (
@@ -81,10 +86,10 @@ const BirdsEyeView = () => {
                   Error Loading Content
                 </div>
                 <p className="text-red-100">{error}</p>
-                <BlurActionButton 
+                <BlurActionButton
                   contentVisible={contentVisible}
                   onClick={() => window.location.reload()}
-                  className="mt-2 py-2 px-4 text-sm"
+                  className="mt-2 min-h-11 px-4 text-sm justify-center"
                 >
                   Retry
                 </BlurActionButton>
@@ -97,54 +102,44 @@ const BirdsEyeView = () => {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
               <p className="text-white/90">Loading videos...</p>
             </BlurContainer>
+          ) : videos.length === 0 ? (
+            !error && (
+              <BlurContainer contentVisible={contentVisible} delay="150ms" className="text-center py-16">
+                <p className="text-white/90 text-lg mb-1">No videos yet</p>
+                <p className="text-gray-300 text-sm">Check back soon for the latest Bird&apos;s Eye View episodes.</p>
+              </BlurContainer>
+            )
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              {/* Main Video Player */}
               <div className="lg:col-span-2 space-y-4">
                 {selectedVideo ? (
                   <BlurContainer contentVisible={contentVisible} delay="200ms" className="rounded-xl overflow-hidden">
                     <div className="aspect-video bg-black rounded-t-xl overflow-hidden">
-                      {(() => {
-                        // Convert YouTube watch URL to embed URL if needed
-                        let embedUrl = selectedVideo.videoUrl;
-                        if (embedUrl.includes('youtube.com/watch')) {
-                          const videoId = embedUrl.split('v=')[1]?.split('&')[0];
-                          embedUrl = `https://www.youtube.com/embed/${videoId}`;
-                        } else if (embedUrl.includes('youtu.be/')) {
-                          const videoId = embedUrl.split('youtu.be/')[1]?.split('?')[0];
-                          embedUrl = `https://www.youtube.com/embed/${videoId}`;
-                        }
-                        
-                        return (
-                          <iframe 
-                            src={embedUrl}
-                            frameBorder="0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                            allowFullScreen
-                            className="w-full h-full"
-                            title={selectedVideo.title}
-                          />
-                        );
-                      })()}
+                      <iframe
+                        src={toYouTubeEmbedUrl(selectedVideo.videoUrl)}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full"
+                        title={selectedVideo.title}
+                      />
                     </div>
-                    <div className="p-6">
+                    <div className="p-4 sm:p-6">
                       <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <h2 className="text-2xl font-bold text-white mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 break-words">
                             {selectedVideo.title}
                           </h2>
-                          <div className="flex items-center space-x-4 text-sm text-gray-300 mb-3">
-                            <div className="flex items-center space-x-2">
-                              <Avatar className="w-6 h-6">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-300 mb-3">
+                            <div className="flex items-center space-x-2 min-w-0">
+                              <Avatar className="w-6 h-6 flex-shrink-0">
                                 <AvatarFallback className="text-xs bg-blue-600 text-white">
                                   {getAuthorInitials(selectedVideo.author)}
                                 </AvatarFallback>
                               </Avatar>
-                              <span>{selectedVideo.author}</span>
+                              <span className="truncate">{selectedVideo.author}</span>
                             </div>
-                            <span>•</span>
-                            <span>{selectedVideo.views.toLocaleString()} views</span>
-                            <span>•</span>
+                            <span>{formatViews(selectedVideo.views)} views</span>
                             <span>{formatDate(selectedVideo.date)}</span>
                           </div>
                           {selectedVideo.featured && (
@@ -156,7 +151,7 @@ const BirdsEyeView = () => {
                           )}
                         </div>
                       </div>
-                      <p className="text-gray-200 leading-relaxed">
+                      <p className="text-gray-200 leading-relaxed break-words">
                         {selectedVideo.description}
                       </p>
                     </div>
@@ -170,7 +165,6 @@ const BirdsEyeView = () => {
                 )}
               </div>
 
-              {/* Video List Sidebar */}
               <div className="space-y-4">
                 <BlurContainer contentVisible={contentVisible} delay="200ms" className="p-4">
                   <h3 className="text-white font-semibold mb-2">All Videos</h3>
@@ -178,7 +172,7 @@ const BirdsEyeView = () => {
 
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {videos.map((video, index) => (
-                    <BlurCard 
+                    <BlurCard
                       key={video._id}
                       contentVisible={contentVisible}
                       index={index}
@@ -191,10 +185,17 @@ const BirdsEyeView = () => {
                       <CardContent className="p-3">
                         <div className="flex space-x-3">
                           <div className="relative flex-shrink-0">
-                            <img 
-                              src={video.thumbnailUrl} 
+                            <img
+                              src={video.thumbnailUrl}
                               alt={video.title}
+                              loading="lazy"
+                              width={64}
+                              height={48}
                               className="w-16 h-12 object-cover rounded bg-gray-700"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.style.visibility = 'hidden';
+                              }}
                             />
                             {video.featured && (
                               <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full"></div>
@@ -205,7 +206,7 @@ const BirdsEyeView = () => {
                               {video.title}
                             </h3>
                             <div className="flex items-center justify-between text-xs text-gray-300">
-                              <span>{video.views.toLocaleString()} views</span>
+                              <span>{formatViews(video.views)} views</span>
                               <span>{formatDate(video.date)}</span>
                             </div>
                           </div>

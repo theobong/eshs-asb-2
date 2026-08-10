@@ -9,18 +9,14 @@ import {
 } from "@shared/mongodb-schema";
 import dotenv from 'dotenv';
 
-// Load environment variables
 dotenv.config();
 
-// Mock data for seeding
 const mockProducts = [
   {
     name: "ESHS Spirit T-Shirt",
     price: 15.99,
     category: "Apparel",
     organization: "ASB",
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["Navy", "Gold", "White"],
     image: "/api/placeholder/400/400",
     description: "Show your school spirit with our official ESHS t-shirt.",
     stock: 50
@@ -30,8 +26,6 @@ const mockProducts = [
     price: 35.00,
     category: "Apparel",
     organization: "Drama Club",
-    sizes: ["S", "M", "L", "XL", "XXL"],
-    colors: ["Black", "Maroon"],
     image: "/api/placeholder/400/400",
     description: "Comfortable hoodie featuring the Drama Club logo.",
     stock: 25
@@ -39,10 +33,8 @@ const mockProducts = [
   {
     name: "Senior Class Ring",
     price: 125.00,
-    category: "Jewelry",
+    category: "Accessories",
     organization: "Senior Class",
-    sizes: ["6", "7", "8", "9", "10", "11", "12"],
-    colors: ["Gold", "Silver"],
     image: "/api/placeholder/400/400",
     description: "Commemorate your senior year with our official class ring.",
     stock: 15
@@ -57,9 +49,6 @@ const mockEvents = [
     time: "7:00 PM - 11:00 PM",
     location: "School Gymnasium",
     description: "Annual spring formal dance for all students.",
-    price: 25.00,
-    maxTickets: 200,
-    features: ["DJ", "Photo Booth", "Refreshments"],
     requiresApproval: false,
     image: "/api/placeholder/600/400"
   },
@@ -70,9 +59,6 @@ const mockEvents = [
     time: "10:00 AM - 12:00 PM",
     location: "Football Stadium",
     description: "Graduation ceremony for the Class of 2025.",
-    price: 0,
-    maxTickets: 1000,
-    features: ["Guest Speakers", "Awards", "Reception"],
     requiresApproval: true,
     image: "/api/placeholder/600/400"
   }
@@ -176,16 +162,12 @@ const mockClubs = [
   }
 ];
 
-
-
 async function seedDatabase() {
   try {
-    // Connect to database
     await connectDB();
-    
-    console.log("🌱 Starting database seeding...");
 
-    // Clear existing data
+    console.log("Starting database seeding...");
+
     await Promise.all([
       Product.deleteMany({}),
       Event.deleteMany({}),
@@ -195,9 +177,8 @@ async function seedDatabase() {
       Club.deleteMany({})
     ]);
 
-    console.log("🗑️ Cleared existing data");
+    console.log("Cleared existing data");
 
-    // Insert mock data
     await Promise.all([
       Product.insertMany(mockProducts),
       Event.insertMany(mockEvents),
@@ -207,8 +188,8 @@ async function seedDatabase() {
       Club.insertMany(mockClubs)
     ]);
 
-    console.log("✅ Database seeded successfully!");
-    console.log(`📊 Seeded data:
+    console.log("Database seeded successfully");
+    console.log(`Seeded data:
     - ${mockProducts.length} products
     - ${mockEvents.length} events
     - ${mockVideos.length} videos
@@ -218,12 +199,11 @@ async function seedDatabase() {
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error seeding database:", error);
+    console.error("Error seeding database:", error);
     process.exit(1);
   }
 }
 
-// Run seeding if this file is executed directly
 if (import.meta.url.includes('seed.ts')) {
   seedDatabase();
 }
