@@ -48,7 +48,7 @@ const committees = [
   { name: "Performance", lead: "Noa Waters", members: ["Juliet McPeck"] },
   { name: "Community Relations", lead: "Annika Fuchs", members: ["Lucy Barondess"] },
   { name: "Historian/Homecoming", lead: "Bella Rexon", members: ["Landon Olsen"]},
-  { name: "Representative", members: ["Tina Akleh", "Kellan Rochon", "Mikey Lambert", "Sophia Galan", "Elliott Bixon", "Olivia Torres", "Brady Stultz", "Makena Burton", "Lochlan Aussem", "Charlie Snyder", "Jack Richmond", "Bodhi Campbell"]},
+  { name: "Representative", lead: "", members: ["Tina Akleh", "Kellan Rochon", "Mikey Lambert", "Sophia Galan", "Elliott Bixon", "Olivia Torres", "Brady Stultz", "Makena Burton", "Lochlan Aussem", "Charlie Snyder", "Jack Richmond", "Bodhi Campbell"]},
 ];
 
 const categoryOf = (position: StudentGovPosition) =>
@@ -253,9 +253,11 @@ export default function Elections() {
                     <h3 className="text-lg font-semibold text-white mb-2 break-words">
                       {committee.name}
                     </h3>
+                  {committee.lead && (
                     <p className="text-sm text-gray-300 mb-3">
                       <span className="font-medium text-gray-200">Lead:</span> {committee.lead}
                     </p>
+                  )}
                     <div>
                       <p className="text-sm font-medium text-gray-200 mb-1">Members:</p>
                       <ul className="text-sm text-gray-300 space-y-1">
