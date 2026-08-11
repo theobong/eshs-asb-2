@@ -11,17 +11,6 @@ const positionCategories = [
   { value: "junior", label: "Junior" },
   { value: "sophomore", label: "Sophomore" },
   { value: "freshman", label: "Freshman" },
-  { value: "committee", label: "Committee" },
-  { value: "birds eye", label: "Birds Eye" },
-  { value: "tech", label: "Tech" },
-  { value: "culture and diversity", label: "Culture and Diversity" },
-  { value: "spirit", label: "Spirit" },
-  { value: "publicity", label: "Publicity" },
-  { value: "clubs", label: "Clubs" },
-  { value: "athletics", label: "Athletics" },
-  { value: "student/staff", label: "Student/Staff" },
-  { value: "special projects", label: "Special Projects" },
-  { value: "performance", label: "Performance" },
 ];
 
 const governmentResources = [
@@ -45,6 +34,21 @@ const governmentResources = [
     description: "Access to student council meeting minutes and records",
     link: "#meeting-minutes"
   }
+];
+const committees = [
+  { name: "Tech Specialist", lead: "Anthony Marsico", members: ["None"] },
+  { name: "Birds Eye", lead: "Brandon Kim", members: ["Jake DiMaria", "Ben Lopez"] },
+  { name: "Culture and Diversity", lead: "Dione Bell", members: ["Emma Navarro"] },
+  { name: "Spirit", lead: "Alana Gutierrez", members: ["Sean Helms", "Marilyn McCaverty"] },
+  { name: "Publicity", lead: "Joey Parisi", members: ["Alyssa Lieberstein", "Odin Thomas"] },
+  { name: "Clubs", lead: "Ani Thomas", members: ["Audrey Winkle"] },
+  { name: "Athletics", lead: "Maggie Williamson", members: ["Chiara Marini"] },
+  { name: "Student/Staff", lead: "Bella Nguyen", members: ["Fiona Makhlouf", "Maia Schobel"] },
+  { name: "Special Projects", lead: "Brooke Immel", members: ["Ella Sabosky", "Tim Roth", "Benni Rayburn"] },
+  { name: "Performance", lead: "Noa Waters", members: ["Juliet McPeck"] },
+  { name: "Community Relations", lead: "Annika Fuchs", members: ["Lucy Barondess"] },
+  { name: "Historian/Homecoming", lead: "Bella Rexon", members: ["Landon Olsen"]},
+  { name: "Representative", members: ["Tina Akleh", "Kellan Rochon", "Mikey Lambert", "Sophia Galan", "Elliott Bixon", "Olivia Torres", "Brady Stultz", "Makena Burton", "Lochlan Aussem", "Charlie Snyder", "Jack Richmond", "Bodhi Campbell"]},
 ];
 
 const categoryOf = (position: StudentGovPosition) =>
@@ -235,7 +239,36 @@ export default function Elections() {
               </BlurContainer>
             )}
           </div>
-
+<h2 className="text-2xl font-bold text-white mb-6">Committees</h2>
+          <BlurContainer contentVisible={contentVisible} delay="600ms" className="p-4 sm:p-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {committees.map((committee, index) => (
+                <BlurCard
+                  key={committee.name}
+                  contentVisible={contentVisible}
+                  index={index}
+                  delay={`${650 + (index * 50)}ms`}
+                >
+                  <div className="p-4 sm:p-6">
+                    <h3 className="text-lg font-semibold text-white mb-2 break-words">
+                      {committee.name}
+                    </h3>
+                    <p className="text-sm text-gray-300 mb-3">
+                      <span className="font-medium text-gray-200">Lead:</span> {committee.lead}
+                    </p>
+                    <div>
+                      <p className="text-sm font-medium text-gray-200 mb-1">Members:</p>
+                      <ul className="text-sm text-gray-300 space-y-1">
+                        {committee.members.map((member, mIndex) => (
+                          <li key={mIndex}>{member}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </BlurCard>
+              ))}
+            </div>
+          </BlurContainer>
           <h2 className="text-2xl font-bold text-white mb-6">Student Government Resources</h2>
           <BlurContainer contentVisible={contentVisible} delay="700ms" className="p-4 sm:p-6 mb-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
