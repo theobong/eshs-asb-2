@@ -36,21 +36,79 @@ const governmentResources = [
   }
 ];
 const committees = [
-  { name: "Tech Specialist", lead: "Anthony Marsico", members: ["None"] },
-  { name: "Birds Eye", lead: "Brandon Kim", members: ["Jake DiMaria", "Ben Lopez"] },
-  { name: "Culture and Diversity", lead: "Dione Bell", members: ["Emma Navarro"] },
-  { name: "Spirit", lead: "Alana Gutierrez", members: ["Sean Helms", "Marilyn McCaverty"] },
-  { name: "Publicity", lead: "Joey Parisi", members: ["Alyssa Lieberstein", "Odin Thomas"] },
-  { name: "Clubs", lead: "Ani Thomas", members: ["Audrey Winkle"] },
-  { name: "Athletics", lead: "Maggie Williamson", members: ["Chiara Marini"] },
-  { name: "Student/Staff", lead: "Bella Nguyen", members: ["Fiona Makhlouf", "Maia Schobel"] },
-  { name: "Special Projects", lead: "Brooke Immel", members: ["Ella Sabosky", "Tim Roth", "Benni Rayburn"] },
-  { name: "Performance", lead: "Noa Waters", members: ["Juliet McPeck"] },
-  { name: "Community Relations", lead: "Annika Fuchs", members: ["Lucy Barondess"] },
-  { name: "Historian/Homecoming", lead: "Bella Rexon", members: ["Landon Olsen"]},
-  { name: "Representative", lead: "", members: ["Tina Akleh", "Kellan Rochon", "Mikey Lambert", "Sophia Galan", "Elliott Bixon", "Olivia Torres", "Brady Stultz", "Makena Burton", "Lochlan Aussem", "Charlie Snyder", "Jack Richmond", "Bodhi Campbell"]},
+  { name: "Tech Specialist", lead: "Anthony Marsico", members: ["None"],
+  description: "Hey Eagles!  I’m Anthony Marsico, head of tech for ASB and I help run all of our school assemblies and control music and projection in these assemblies.  In addition to the school assemblies, I’m also working on a new school website and handle any technology related task within ASB.  Fun fact, my committee is the only one person committee in ASB.",
+  image: "/Tech.jpg",
+  },
+  { name: "Birds Eye", lead: "Brandon Kim", members: ["Jake DiMaria", "Ben Lopez"], 
+  description: "Hi, we’re the Birds Eye Committee!!  We are all over campus making your favorite monthly school videos. We always put 110% effort in every video we  make and hope you enjoy them!",
+  image: "/Birds Eye JPG.jpg",
+  },
+  { name: "Culture and Diversity", lead: "Dione Bell", members: ["Emma Navarro"],
+  description: "Hey eagles! We are your Culture and Diversity committee. Dione Bell is commissioner and Emma Navarro is co-commissioner. Together we promote diversity and on campus unity. We also use every morning announcement to talk about a special event or recognize someone. We support and coordinate events such as Red Ribbon Week, as well as new clubs, programs, activities and assemblies that promote tolerance of all diverse groups.",
+  image: "/culture-and-diversity.jpg",
+  },
+  { name: "Spirit", lead: "Alana Gutierrez", members: ["Sean Helms", "Marilyn McCaverty"],
+  description: "Hey Eagles!  We are the spirit commissioners and we plan all of the fun spirit events on campus. We plan the LTAs, Spirit days, pep rallies, and themes for your favorite sports events! We help bring your creative ideas to life. We love spreading that Eagle pride in the classroom and out. Don’t forget to dress up for EVERY SINGLE SPIRIT DAY!!!!!!",
+  image: "/Spirit.jpg",
+  },
+  { name: "Publicity", lead: "Joey Parisi", members: ["Alyssa Lieberstein", "Odin Thomas"],
+  description: "As the Publicity & Public Relations Committee, our job is to make sure students know what’s happening around campus and get excited about upcoming events. We create flyers, posters, work on bulletin boards, displays, and other promotional materials to spread the word about ASB and school activities. We also help represent ASB and make sure our school events are being promoted in a fun, creative, and engaging way.",
+  image: "/Publicity.jpg",
+  },
+  { name: "Clubs", lead: "Ani Thomas", members: ["Audrey Winkle"],
+  description: "Hey Eagles! We’re your Club Commissioners!  Throughout the year, we help support and promote all of our school clubs. We highlight your clubs on our Instagram, organize Club Rush, and make sure every club has the opportunity to be represented and gain new members. We’re also here to answer any questions you may have about your club and help make sure everything runs smoothly. From time to time, we host Student Senate meetings where we provide information on how to host club events and complete any necessary paperwork. Go clubs!",
+  image: "/Clubs.jpg",
+  },
+  { name: "Athletics", lead: "Maggie Williamson", members: ["Chiara Marini"],
+  description: "Athletics committee description",
+  image: "/Athletics.jpg",
+  },
+  { name: "Student/Staff", lead: "Bella Nguyen", members: ["Fiona Makhlouf", "Maia Schobel"],
+  description: "The Student/Staff Committee is responsible for creating a positive and welcoming school environment by strengthening relationships between students, teachers, and staff. Our goal is to lead by example while planning appreciation and recognition activities, such as recognizing staff and students of the month, Teacher Appreciation Week, and creating a welcoming environment for our student body. Our committee works to make both students and staff feel valued and supported throughout the school year.",
+  image: "/Student and Staff.jpg",
+  },
+  { name: "Special Projects", lead: "Brooke Immel", members: ["Ella Sabosky", "Tim Roth", "Benni Rayburn"],
+  description: "In special projects we do little of everything. One of our main jobs is to coordinate and run special activities, specifically tournaments like powder puff, march madness, and many more. We also help out all the other committees with things like assemblies and pep rallies. You can find us at a majority of ASB events helping out with random tasks.",
+  image: "/Special Projects.jpg",
+  },
+  { name: "Performance", lead: "Noa Waters", members: ["Juliet McPeck"],
+  description: "Hi guys, it's Juliet and Noa!  We are the Performance Commissioners this school year. We are in charge of ensuring that everyone in Performing Arts gets the representation they deserve! Some of our duties include decorating lockers, coordinating flash mobs, and raising awareness for upcoming performances! We are so excited for the amazing year ahead!",
+  image: "/Performance.jpg",
+  },
+  { name: "Community Relations", lead: "Annika Fuchs", members: ["Lucy Barondess"],
+  description: "The Community Relations Committee works to strengthen connections between our school and the local community. We organize events such as the annual blood drive, toy drive, and Senior Citizen Tea, creating opportunities for students to give back, serve others, and make a positive impact in our community.",
+  image: "/Community Relations.jpg",
+  },
+  { name: "Historian/Homecoming", lead: "Bella Rexon", members: ["Landon Olsen"],
+  description: "It’s Bella, Landon, and Ava!! The three of us are on the Homecoming committee. We plan Float Building, pick a theme for Homecoming week, and most importantly plan the Homecoming parade!! Bella and Landon are your ASB Historians for the year. We set an example for the ASB class and make sure everything behind the scenes is in order. From taking pictures, to keeping an updated schedule of events and activities, we do it all!",
+  image: "/Historian + Homecoming.jpg",
+  },
+  { name: "Representative", lead: "", members: ["Tina Akleh", "Kellan Rochon", "Mikey Lambert", "Sophia Galan", "Elliott Bixon", "Olivia Torres", "Brady Stultz", "Makena Burton", "Lochlan Aussem", "Charlie Snyder", "Jack Richmond", "Bodhi Campbell"],
+  description: "What’s up eagles!  We are your ASB representatives and we bring the energy, teamwork, and extra hands that help bring our schools biggest ideas to life! From supporting committees and events, to showing up, speaking up, and stepping in wherever needed, representatives are all about school spirit collaboration, and making things happen!!",
+  image: "/ASB Reps.jpg",
+  },
 ];
-
+const director = {
+  name: "Mrs. Richmond",
+  title: "ASB Director",
+  image: "/director.jpg",
+  bio: "A short bio about the director goes here.",
+};
+const officersImage = "/officersImage.jpg";
+const classImages: Record<string, string> = {
+  senior: "/SeniorOfficers.jpg",
+  junior: "/JuniorOfficers.jpg",
+  sophomore: "/SophomoreOfficers.jpg",
+  freshman: "/FreshmenOfficers.jpg",
+};
+const officersQuote = "Wassup Eagles!  We're your ASB officers this year and we can't wait to make Gundochella the best one yet. We make sure ASB is working and thriving- running meetings, organizing responsibilities, planning Hoco week, and making sure our school's finances are in check. You will see us all around the campus, at different sports and events, and all assemblies/rallies! We've got your back to make this year one of special memories and unforgettable!";
+const classQuotes: Record<string, string> = {
+  senior: "Hey, it’s Addie, Luke, and Sydney and we’re so excited to be your Senior Officers this year! We can’t wait to make our senior year one to remember with all the special activities we have planned, from Senior Sunrise to Grad Nite at Disneyland and everything in between. We’re pumped to represent the Class of 2027 and make this year unforgettable! Go Eagles!",
+  junior: "Hi! We are your 2026-27 junior officers, Chloe Fitzgerald, Ashlyn Ward, and Lily Snyder! This year we will be planning your Homecoming dance, Prom, and running all the assemblies that go along with it. You may have already seen us running the snackbar at your first home football game this season. We aim to promote class participation, school spirit, and offer a welcoming environment for all ESHS students. We are so excited to serve as your junior officers for this school year!",
+  sophomore: "What’s up Eagles!  We are your Sophomore class officers. We are so excited for this school year! Kicking the year off strong with the Coachella theme, we strongly encourage participation in this year's spirit week and the Friday night lights. We will be in charge of important events that take place here on campus such as the basketball snack bar, planning next year's prom location, kindness week, and of course float building. We aim to be able to represent the sophomore student body to the best of our ability and have a great year!",
+  freshman: "It is your freshman officers. Harper Green is your freshman governor. Lauren Christenson, your lieutenant governor. And last but not least Logan Arnold your Secretary/ Treasurer! This year we are going to plan the freshman HOCO float and overall plan the 9th grade activities that will take place!  We are all so excited for this year and ready to have so much fun!",
+};
 const categoryOf = (position: StudentGovPosition) =>
   (position.gradeLevel || "").toLowerCase();
 
@@ -95,7 +153,13 @@ export default function Elections() {
     label: level.replace(/\b\w/g, (c) => c.toUpperCase()),
   }));
   const categoryOptions = [...positionCategories, ...extraCategories];
-
+  const officerPositions = positions.filter(position => categoryOf(position) === "officer");
+  const classGroups = [
+  { key: "senior", label: "Seniors" },
+  { key: "junior", label: "Juniors" },
+  { key: "sophomore", label: "Sophomores" },
+  { key: "freshman", label: "Freshmen" },
+];
   if (loading) {
     return (
       <UniversalPageLayout pageType="information" title="Student Government" onBackClick={handleBackClick}>
@@ -150,94 +214,90 @@ export default function Elections() {
               </div>
             </div>
           </BlurContainer>
-
-          <div className="mb-8 max-w-md mx-auto">
-            <label htmlFor="category-filter" className="block text-sm font-medium text-gray-200 mb-2">
-              Filter by category
-            </label>
-            <select
-              id="category-filter"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full min-h-11 rounded-lg bg-white/5 border border-white/10 shadow-lg text-white text-base px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-white/30 cursor-pointer"
-            >
-              <option value="all" className="bg-gray-900 text-white">All</option>
-              {categoryOptions.map((category) => (
-                <option key={category.value} value={category.value} className="bg-gray-900 text-white">
-                  {category.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-8">
-            {filteredPositions.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredPositions.map((position, index) => (
-                  <BlurCard
-                    key={position._id}
-                    contentVisible={contentVisible}
-                    index={index}
-                    delay={`${500 + (index * 50)}ms`}
-                  >
-                    <div className="p-4 sm:p-6">
-                      <div className="flex justify-between items-start gap-2 mb-4">
-                        <div className="min-w-0">
-                          <h3 className="text-xl font-semibold text-white mb-2 break-words">{position.position}</h3>
-                          <p className="text-gray-300 mb-3">{position.description}</p>
-                        </div>
-                        <Badge variant="outline" className="flex-shrink-0 capitalize">
-                          {position.gradeLevel}
-                        </Badge>
-                      </div>
-
-                      {position.currentRepresentatives && position.currentRepresentatives.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="font-medium text-gray-200 mb-3">Current Representative(s):</h4>
-                          {position.currentRepresentatives.map((rep, repIndex) => (
-                            <div key={`${position._id}-${repIndex}`} className="p-3 sm:p-4 bg-white/5 rounded-lg border border-white/10 mb-3">
-                              <div className="flex items-start gap-3 sm:gap-4">
-                                {rep.image && (
-                                  <img
-                                    src={rep.image}
-                                    alt={rep.name}
-                                    loading="lazy"
-                                    className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-full object-cover border-2 border-white/20"
-                                    onError={(e) => {
-                                      e.currentTarget.onerror = null;
-                                      e.currentTarget.style.display = 'none';
-                                    }}
-                                  />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-white font-semibold text-lg break-words">{rep.name}</p>
-                                  {rep.email && (
-                                    <p className="text-sm text-gray-300 break-words">{rep.email}</p>
-                                  )}
-                                  {rep.bio && (
-                                    <p className="text-sm text-gray-200 mt-2 break-words">{rep.bio}</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                    <BlurContainer contentVisible={contentVisible} delay="300ms" className="p-4 sm:p-6 mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">ASB Director</h2>
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+              {director.image && (
+                <img
+                  src={director.image}
+                  alt={director.name}
+                  loading="lazy"
+                  className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 rounded-full object-cover border-2 border-white/20"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+              <div className="flex-1 min-w-0 text-center sm:text-left">
+                <p className="text-white font-semibold text-lg break-words">{director.name}</p>
+                <p className="text-sm text-gray-300 break-words">{director.title}</p>
+                <p className="text-sm text-gray-200 mt-2 break-words">{director.bio}</p>
+              </div>
+            </div>
+          </BlurContainer>
+          <BlurContainer contentVisible={contentVisible} delay="400ms" className="p-4 sm:p-6 mb-8">
+            <h2 className="text-2xl font-bold text-white text-center mb-4">ASB Officers</h2>
+            <img
+              src={officersImage}
+              alt="ASB Officers"
+              loading="lazy"
+              className="w-40 h-40 sm:w-48 sm:h-48 mx-auto rounded-full object-cover border-2 border-white/20 mb-6"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+             <p className="text-center text-gray-300 italic mb-6">"{officersQuote}"</p>
+            <div className="space-y-4">
+              {officerPositions.map((position, index) => (
+                <div key={position._id} className={index > 0 ? "pt-4 border-t border-white/10" : ""}>
+                  <h3 className="text-lg font-bold text-white text-center">{position.position}</h3>
+                  {position.currentRepresentatives && position.currentRepresentatives.map((rep, repIndex) => (
+                    <div key={`${position._id}-${repIndex}`} className="text-center">
+                      <p className="text-white break-words">{rep.name}</p>
+                      {rep.email && (
+                        <p className="text-sm text-gray-300 break-words">{rep.email}</p>
                       )}
                     </div>
-                  </BlurCard>
-                ))}
-              </div>
-            ) : (
-              <BlurContainer contentVisible={contentVisible} delay="400ms" className="text-center py-12">
-                <svg className="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-white">No positions found</h3>
-                <p className="mt-1 text-sm text-gray-300">
-                  There are currently no positions listed for this category.
-                </p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </BlurContainer>
+
+          <div className="space-y-6 mb-8">
+            {classGroups.map((group, groupIndex) => (
+              <BlurContainer key={group.key} contentVisible={contentVisible} delay={`${500 + groupIndex * 100}ms`} className="p-4 sm:p-6">
+                <h3 className="text-2xl font-bold text-white text-center mb-4">{group.label}</h3>
+                <img
+                  src={classImages[group.key]}
+                  alt={group.label}
+                  loading="lazy"
+                  className="w-40 h-40 sm:w-48 sm:h-48 mx-auto rounded-full object-cover border-2 border-white/20 mb-6"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+               <p className="text-center text-gray-300 italic mb-6">"{classQuotes[group.key]}"</p>
+                <div className="space-y-4">
+                  {positions.filter(position => categoryOf(position) === group.key).map((position, index) => (
+                    <div key={position._id} className={index > 0 ? "pt-4 border-t border-white/10" : ""}>
+                      <h4 className="text-lg font-bold text-white text-center">{position.position}</h4>
+                      {position.currentRepresentatives && position.currentRepresentatives.map((rep, repIndex) => (
+                        <div key={`${position._id}-${repIndex}`} className="text-center">
+                          <p className="text-white break-words">{rep.name}</p>
+                          {rep.email && (
+                            <p className="text-sm text-gray-300 break-words">{rep.email}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </BlurContainer>
-            )}
+            ))}
           </div>
 <h2 className="text-2xl font-bold text-white mb-6">Committees</h2>
           <BlurContainer contentVisible={contentVisible} delay="600ms" className="p-4 sm:p-6 mb-8">
@@ -249,10 +309,26 @@ export default function Elections() {
                   index={index}
                   delay={`${650 + (index * 50)}ms`}
                 >
-                  <div className="p-4 sm:p-6">
+                  <div className="p-4 sm:p-6 flex gap-4">
+                    {committee.image && (
+                      <img
+                        src={committee.image}
+                        alt={committee.name}
+                        loading="lazy"
+                        className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-full object-cover border-2 border-white/20"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-semibold text-white mb-2 break-words">
                       {committee.name}
                     </h3>
+                  {committee.description && (
+                    <p className="text-sm text-gray-300 mb-3">{committee.description}</p>
+                  )}
                   {committee.lead && (
                     <p className="text-sm text-gray-300 mb-3">
                       <span className="font-medium text-gray-200">Lead:</span> {committee.lead}
@@ -267,6 +343,7 @@ export default function Elections() {
                       </ul>
                     </div>
                   </div>
+                </div>
                 </BlurCard>
               ))}
             </div>
