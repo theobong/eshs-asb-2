@@ -61,7 +61,7 @@ const committees = [
   image: "/Clubs.jpg",
   },
   { name: "Athletics", lead: "Maggie Williamson", members: ["Chiara Marini"],
-  description: "Athletics committee description",
+  description: "The Athletics Committee is dedicated to supporting, celebrating, and bringing together all of the athletes at our school. We are responsible for helping create memorable experiences throughout the athletic year, from planning Senior Nights and team celebrations to organizing events that get students involved and show our support for our school’s teams. Our goal is to make every athlete feel recognized for the time, dedication, and hard work they put into their sport.",
   image: "/Athletics.jpg",
   },
   { name: "Student/Staff", lead: "Bella Nguyen", members: ["Fiona Makhlouf", "Maia Schobel"],
