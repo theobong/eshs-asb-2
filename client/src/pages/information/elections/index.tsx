@@ -93,8 +93,8 @@ const director = {
   name: "Mrs. Richmond",
   title: "ASB Director",
   image: "/director.jpg",
-  bio: "A short bio about the director goes here.",
-};
+  bio: "Mrs. Ashley Richmond has been a teacher at ESHS since 2014 and is beginning her fifth year as the Activities Director. She graduated from the University of Oregon with a B.A. in Psychology and later earned her Master’s in Teaching. During her college years, she was actively involved in philanthropy and campus events, including serving as the Social Chair of her sorority. Before entering education, she worked as an event planner for a variety of companies and even had the opportunity to briefly work in the entertainment industry.  ASB has given Mrs. Richmond the opportunity to bring together her love of teaching, leadership, philanthropy, creativity, and performance. While her background has certainly prepared her for the role, she credits the incredible students and staff she has had the privilege of working alongside as the greatest part of her experience. She is continually inspired by the energy, creativity, kindness, and passion that ESHS students bring to campus and is grateful for the opportunity to learn from them every day.  Most importantly, Mrs. Richmond feels incredibly fortunate to have a job that allows her to help students discover their voices, take on leadership, build community, and create memories that will last long beyond high school. She may be the Activities Director, but she knows that the magic of ESHS comes from the students who bring the spirit, heart, and ideas to life. She truly feels lucky to have the best job ever!.",};
+
 const officersImage = "/officersImage.jpg";
 const classImages: Record<string, string> = {
   senior: "/SeniorOfficers.jpg",
@@ -215,26 +215,22 @@ export default function Elections() {
             </div>
           </BlurContainer>
                     <BlurContainer contentVisible={contentVisible} delay="300ms" className="p-4 sm:p-6 mb-8">
-            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">ASB Director</h2>
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
-              {director.image && (
-                <img
-                  src={director.image}
-                  alt={director.name}
-                  loading="lazy"
-                  className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 rounded-full object-cover border-2 border-white/20"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              )}
-              <div className="flex-1 min-w-0 text-center sm:text-left">
-                <p className="text-white font-semibold text-lg break-words">{director.name}</p>
-                <p className="text-sm text-gray-300 break-words">{director.title}</p>
-                <p className="text-sm text-gray-200 mt-2 break-words">{director.bio}</p>
-              </div>
-            </div>
+         <h2 className="text-2xl font-bold text-white text-center mb-4">{director.title}</h2>
+          {director.image && (
+  <img
+    src={director.image}
+    alt={director.name}
+    loading="lazy"
+    className="w-40 h-40 sm:w-48 sm:h-48 mx-auto rounded-full object-cover border-2 border-white/20 mb-6"
+    onError={(e) => {
+      e.currentTarget.onerror = null;
+      e.currentTarget.style.display = 'none';
+    }}
+  />)}
+          <div className="text-center">
+            <p className="text-white font-semibold text-lg break-words">{director.name}</p>
+            <p className="text-base text-gray-300 italic break-words">{director.bio}</p>
+          </div>
           </BlurContainer>
           <BlurContainer contentVisible={contentVisible} delay="400ms" className="p-4 sm:p-6 mb-8">
             <h2 className="text-2xl font-bold text-white text-center mb-4">ASB Officers</h2>
